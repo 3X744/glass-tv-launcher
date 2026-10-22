@@ -226,9 +226,8 @@ adb connect 192.168.1.50:5555
 adb -s 192.168.1.50:5555 install -r -g app/build/outputs/apk/debug/app-debug.apk
 ```
 
-> [!IMPORTANT]
-> The first connection makes the TV ask **Allow USB debugging?** Tick **Always allow** and accept, or `adb` will show
-> the stick as `unauthorized`.
+> ⚠️ **Watch the TV:** the first connection makes it ask **Allow USB debugging?** Tick **Always allow** and accept, or
+> `adb` will show the stick as `unauthorized`.
 
 Then give Glass the two permissions it needs, once:
 
