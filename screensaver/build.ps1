@@ -19,4 +19,6 @@ try {
 
 # The screensaver is silent and offline: drop the web app's river sound and social-card image
 Remove-Item -Recurse -Force (Join-Path $out 'audio'), (Join-Path $out 'nagomi-social-v1.png') -ErrorAction SilentlyContinue
+# PolyForm Noncommercial: every copy of the pond, including the one inside the APK, must carry its licence
+Copy-Item (Join-Path $nagomi 'LICENSE') (Join-Path $out 'LICENSE')
 Write-Output "built into $out"
