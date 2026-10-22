@@ -62,6 +62,40 @@ top. See [Credits and licences](#credits-and-licences) for details.
 - A computer on the same Wi-Fi with **JDK 17+**, the **Android SDK** (Android Studio installs it) and `adb`
 - For the debloat scripts from upstream: Python 3 (macOS/Linux shell scripts)
 
+## Let your agent do it
+
+Have a coding agent with a terminal (Claude Code, Codex, Cursor and similar)? Do the three TV steps under
+[1. On the TV](#1-on-the-tv) yourself. Then paste the prompt below into the agent, and keep the remote nearby: the
+TV will ask you to allow debugging.
+
+```text
+Install Glass TV (https://github.com/R4maa/glass-tv-launcher) on my Fire TV Stick. Follow the repo's README; it is the
+source of truth. Work step by step and tell me what you're doing as you go.
+
+1. Ask me for my Fire TV Stick's IP address (Settings > My Fire TV > About > Network). I have already turned on ADB
+   debugging. Don't continue until I've given you the IP.
+2. Check my computer for git, JDK 17 or newer, the Android SDK and adb (adb is in the SDK's platform-tools). If
+   something is missing, tell me what it is and how to install it for my OS, and ask before you install anything.
+3. Clone the repo. In glass-launcher/launcher, write local.properties with sdk.dir set to my Android SDK, then build
+   with the Gradle wrapper (gradlew.bat assembleDebug on Windows, ./gradlew assembleDebug elsewhere). If the build
+   fails, read the error and fix the environment, not the project's code.
+4. Run "adb connect <IP>:5555". Tell me to look at the TV, tick "Always allow" and accept the "Allow USB debugging?"
+   prompt. Wait for me, then check that "adb devices" lists the stick as "device", not "unauthorized".
+5. Install app/build/outputs/apk/debug/app-debug.apk with "adb -s <IP>:5555 install -r -g". Then run the three
+   commands from README step 3 that turn on the Glass Home button accessibility service and the Now Playing
+   notification access.
+6. Ask me to press Home on the remote and confirm that Glass opens.
+7. Ask whether I want Glass's koi pond as the screensaver. If yes, tell me to set Fire TV Settings > Display & Sounds
+   > Screensaver > Start Time to Never. Once I have, run the two README step 4 commands that restore the 15-minute
+   sleep timeout.
+8. Do NOT run any debloat script or disable any packages unless I explicitly ask. If I ask, show me
+   glass-launcher/debloat/disable-list.txt first and let me remove anything I use.
+9. When you're done, summarise what changed and how to undo it (README "Undoing everything"). Remind me to turn off
+   ADB debugging in Developer Options.
+
+Never factory-reset, uninstall Amazon apps, or change settings other than the ones listed here.
+```
+
 ## Setup
 
 ### 1. On the TV
