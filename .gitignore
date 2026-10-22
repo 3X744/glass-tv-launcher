@@ -1,0 +1,18 @@
+# Gradle / Android build output and machine-specific SDK paths
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+*.apk
+
+# Build logs
+*.log
+*.err
+
+# subcritic: keep the capture script and the first/last rounds only
+subcritic-runs/round-2/
+subcritic-runs/round-3/
+subcritic-runs/round-4/
+subcritic-runs/round-5/
+subcritic-runs/round-6/

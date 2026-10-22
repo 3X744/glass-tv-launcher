@@ -1,0 +1,190 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- Designed on the 960x540dp canvas of a 1080p Fire TV (density 320).
+     Everything that moves when you press Down lives inside @id/page. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black"
+    android:clipChildren="false">
+
+    <ImageView
+        android:id="@+id/wallpaper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:id="@+id/page"
+        android:layout_width="match_parent"
+        android:layout_height="1080dp"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- Ambient glow: a circle squashed into an ellipse behind the dock (scaleY set in code) -->
+        <View
+            android:id="@+id/glow"
+            android:layout_width="match_parent"
+            android:layout_height="960dp"
+            android:layout_marginTop="-72dp" />
+
+        <View
+            android:id="@+id/band"
+            android:layout_width="840dp"
+            android:layout_height="142dp"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="327dp"
+            android:background="@drawable/band_bg" />
+
+        <com.ivantrj.glasslauncher.GlassHighlight
+            android:id="@+id/highlight"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:id="@+id/header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="82dp"
+            android:layout_marginTop="34dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/greeting"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF"
+                android:textSize="19sp" />
+
+            <TextClock
+                android:id="@+id/clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="-4dp"
+                android:layout_marginTop="-10dp"
+                android:format12Hour="h:mm"
+                android:format24Hour="HH:mm"
+                android:includeFontPadding="false"
+                android:textColor="#FFFFFFFF"
+                android:textSize="100sp" />
+
+            <TextClock
+                android:id="@+id/date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:format12Hour="EEEE, d MMMM"
+                android:format24Hour="EEEE, d MMMM"
+                android:textColor="#B8FFFFFF"
+                android:textSize="19sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/dockTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="84dp"
+            android:layout_marginTop="252dp"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="#F2FFFFFF"
+            android:textSize="50sp" />
+
+        <LinearLayout
+            android:id="@+id/dockRow"
+            android:layout_width="816dp"
+            android:layout_height="144dp"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="337dp"
+            android:clipChildren="false"
+            android:orientation="horizontal" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/grid"
+            android:layout_width="816dp"
+            android:layout_height="516dp"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="501dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:descendantFocusability="blocksDescendants"
+            android:focusable="false"
+            android:overScrollMode="never"
+            android:paddingBottom="24dp"
+            android:scrollbars="none" />
+
+        <LinearLayout
+            android:id="@+id/pills"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="42dp"
+            android:layout_marginEnd="84dp"
+            android:clipChildren="false"
+            android:orientation="horizontal">
+
+            <!-- Now Playing: album art + "Title Â· Artist" while something plays; Select play/pause, Menu opens the app -->
+            <LinearLayout android:id="@+id/pillMedia" style="@style/Pill" android:paddingStart="8dp">
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginEnd="10dp">
+                    <ImageView
+                        android:id="@+id/mediaArt"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ic_music" />
+                    <!-- Pause badge over the art while paused, so paused doesn't rely on dimming alone -->
+                    <ImageView
+                        android:id="@+id/mediaPaused"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_pause"
+                        android:visibility="gone" />
+                </FrameLayout>
+                <!-- Same 200dp cap as the other pills (PillText) so a long title can't reach the clock -->
+                <TextView android:id="@+id/mediaText" style="@style/PillText"
+                    android:text="@string/music" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/pillWifi" style="@style/Pill">
+                <ImageView style="@style/PillIcon" android:src="@drawable/ic_wifi" />
+                <TextView android:id="@+id/wifiName" style="@style/PillText" android:text="Wi-Fi" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/pillSettings" style="@style/Pill">
+                <ImageView style="@style/PillIcon" android:src="@drawable/ic_settings" />
+                <TextView style="@style/PillText" android:text="@string/settings" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/inputsMenu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/menu_bg"
+        android:minWidth="220dp"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:visibility="gone" />
+
+    <!-- Move mode instructions: outside the sliding page so they stay on screen over the grid -->
+    <TextView
+        android:id="@+id/moveHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/menu_bg"
+        android:paddingStart="24dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="12dp"
+        android:textColor="#F2FFFFFF"
+        android:textSize="17sp"
+        android:visibility="gone" />
+</FrameLayout>

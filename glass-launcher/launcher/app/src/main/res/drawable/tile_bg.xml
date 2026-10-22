@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A lifted fill and a visible edge so dark icon-only tiles don't melt into the dock band -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="14dp" />
+    <solid android:color="#FF2A2A30" />
+    <stroke android:width="2dp" android:color="#47FFFFFF" />
+</shape>
