@@ -185,6 +185,10 @@ Other Fire OS 8 sticks should work. If you try one, open an issue or PR with wha
 Built in the spirit of [CleanYourTV](https://github.com/Gathin23/cleanyourtv), which does the
 same for Android TV and Google TV sets.
 
+## Support
+
+If Glass is useful to you, you can buy me a coffee on [Ko-fi](https://ko-fi.com/rama2019).
+
 ## License
 
 MIT, see [LICENSE](LICENSE). The **Outfit** font is © The Outfit Project Authors, SIL Open

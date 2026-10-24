@@ -10,6 +10,7 @@ No ads, no tracking, a clean home screen, and a koi pond that swims across your 
 [![Android 11](https://img.shields.io/badge/Android-11_(API_30)-3DDC84?style=flat-square&logo=android&logoColor=white)](glass-launcher/launcher)
 [![No root](https://img.shields.io/badge/root-not_needed-blue?style=flat-square)](#undoing-everything)
 [![Licence](https://img.shields.io/badge/licence-MIT_%2B_PolyForm_NC-lightgrey?style=flat-square)](#credits-and-licences)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-support_me-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/rama2019)
 
 [**Features**](#-features) · [**Let your agent do it**](#-let-your-agent-do-it) · [**Manual setup**](#manual-setup) · [**Undo**](#undoing-everything) · [**Credits**](#credits-and-licences)
 
@@ -320,6 +321,10 @@ you use before running it. See the [upstream README](glass-launcher/README.md) f
 | [`firestick-restore.ps1`](firestick-restore.ps1) | Undo script for Windows |
 
 </details>
+
+## ☕ Support
+
+If Glass TV makes your TV a little calmer, you can [buy me a coffee on Ko-fi](https://ko-fi.com/rama2019).
 
 ## Credits and licences
 
