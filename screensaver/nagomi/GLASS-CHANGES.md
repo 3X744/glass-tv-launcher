@@ -22,3 +22,6 @@ All changes are behind the `?tv=1` URL flag; the web app behaves as before.
   lets the screensaver open straight on its sky instead of fading in from sunny.
 - `src/koi.ts`: fish 0 becomes the giant koi (about 2.6x length, slower, wider turns) when `giant=1`.
 - `src/school.ts`: seeded from the session seed instead of the fixed `0x00c0ffee`.
+- `src/water-surface.ts`: each ring's radius, fade and strength are worked out once per frame on the CPU instead of
+  per pixel (same result), and on TV pixels skip rings whose band is too far away to matter. TV rain is 14 drops/s
+  with up to 24 rings: at 32 drops/s (~58 rings) the stick's GPU dropped the pond to ~15 fps in rain.

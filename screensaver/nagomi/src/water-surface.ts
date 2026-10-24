@@ -3,11 +3,9 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   MAX_RIPPLES,
-  MAX_RIPPLE_TYPES,
   RIPPLES,
   WATER,
 } from "./config";
-import { RIPPLE_TYPE_ORDER } from "./ripple-system";
 import { School } from "./school";
 import { TV } from "./tv";
 
@@ -23,30 +21,20 @@ const vertexShader = /* glsl */ `
   }
 `;
 
-function rippleProfileSelection(uniformName: string): string {
-  return Array.from(
-    { length: Math.max(0, MAX_RIPPLE_TYPES - 1) },
-    (_, offset) => {
-      const index = offset + 1;
-      return `if (typeIndex > ${index - 0.5}) profile = ${uniformName}[${index}];`;
-    },
-  ).join("\n    ");
-}
-
 const fragmentShader = /* glsl */ `
   precision highp float;
 
   #define MAX_RIPPLES ${MAX_RIPPLES}
-  #define MAX_RIPPLE_TYPES ${MAX_RIPPLE_TYPES}
 
   uniform sampler2D uUnderwater;
   uniform sampler2D uDisturbance;
   uniform vec2 uResolution;
   uniform float uTime;
   uniform int uRippleCount;
+  // Per ring, worked out once per frame on the CPU: (center, radius, band sharpness) and
+  // (band amplitude, amplitude x distortion)
   uniform vec4 uRipples[MAX_RIPPLES];
-  uniform vec4 uRipplePhysics[MAX_RIPPLE_TYPES];
-  uniform vec4 uRippleCurves[MAX_RIPPLE_TYPES];
+  uniform vec2 uRippleAmplitudes[MAX_RIPPLES];
   uniform vec3 uColorTint;
   uniform float uClarity;
   uniform float uShowCurrentEffect;
@@ -73,18 +61,6 @@ const fragmentShader = /* glsl */ `
   uniform float uSecondaryLargeCurrentTime;
   uniform float uDetailCurrentTime;
   varying vec2 vUv;
-
-  vec4 ripplePhysics(float typeIndex) {
-    vec4 profile = uRipplePhysics[0];
-    ${rippleProfileSelection("uRipplePhysics")}
-    return profile;
-  }
-
-  vec4 rippleCurves(float typeIndex) {
-    vec4 profile = uRippleCurves[0];
-    ${rippleProfileSelection("uRippleCurves")}
-    return profile;
-  }
 
   vec2 hash22(vec2 point) {
     vec2 value = vec2(
@@ -207,42 +183,24 @@ const fragmentShader = /* glsl */ `
     ) * 0.13 / uResolution;
 
     float rippleShine = 0.0;
+    vec2 rippleDisplacement = vec2(0.0);
     for (int index = 0; index < MAX_RIPPLES; index++) {
       if (index >= uRippleCount) break;
 
       vec4 ripple = uRipples[index];
-      float typeIndex = floor(ripple.w * 0.5);
-      float strength = mod(ripple.w, 2.0);
-      vec4 physics = ripplePhysics(typeIndex);
-      vec4 curves = rippleCurves(typeIndex);
       vec2 delta = pixel - ripple.xy;
       float distanceToCenter = length(delta);
-      vec2 radial = delta / max(distanceToCenter, 0.001);
-      float radius =
-        physics.y
-        + ripple.z * physics.z;
-      float signedDistance = distanceToCenter - radius;
-      float fade = 1.0 - smoothstep(
-        physics.x * curves.y,
-        physics.x,
-        ripple.z
-      );
-      float life = clamp(ripple.z / max(physics.x, 0.001), 0.0, 1.0);
-      float distortionBand =
-        exp(-abs(signedDistance) * curves.x)
-        * fade
-        * strength
-        * (1.0 - life * curves.z);
+      float signedDistance = distanceToCenter - ripple.z;
+      float band = abs(signedDistance) * ripple.w;
+      // Glass TV: skip rings too far from this pixel to matter (exp(-6) of the band)
+      ${TV.active ? "if (band > 6.0) continue;" : ""}
+      vec2 amplitude = uRippleAmplitudes[index] * exp(-band);
       float direction = signedDistance < 0.0 ? -1.0 : 1.0;
-      rippleShine += direction * distortionBand;
-
-      displacement +=
-        vec2(radial.x, -radial.y)
-        * direction
-        * distortionBand
-        * physics.w
-        / uResolution;
+      rippleShine += direction * amplitude.x;
+      rippleDisplacement +=
+        delta * (direction * amplitude.y / max(distanceToCenter, 0.001));
     }
+    displacement += vec2(rippleDisplacement.x, -rippleDisplacement.y) / uResolution;
 
     vec2 localDisturbance = texture2D(uDisturbance, vUv).xy;
     displacement +=
@@ -390,6 +348,11 @@ function waterAppearanceFromConfig(): RuntimeWaterAppearance {
   };
 }
 
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+  return t * t * (3 - 2 * t);
+}
+
 export class WaterSurfacePass {
   public readonly mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
 
@@ -398,13 +361,9 @@ export class WaterSurfacePass {
     { length: MAX_RIPPLES },
     () => new THREE.Vector4(),
   );
-  private readonly ripplePhysics = Array.from(
-    { length: MAX_RIPPLE_TYPES },
-    () => new THREE.Vector4(1, 0, 0, 0),
-  );
-  private readonly rippleCurves = Array.from(
-    { length: MAX_RIPPLE_TYPES },
-    () => new THREE.Vector4(1, 0, 0, 0),
+  private readonly rippleAmplitudes = Array.from(
+    { length: MAX_RIPPLES },
+    () => new THREE.Vector2(),
   );
   private readonly currentAppearance = waterAppearanceFromConfig();
   private targetAppearance = waterAppearanceFromConfig();
@@ -427,8 +386,7 @@ export class WaterSurfacePass {
         uTime: { value: 0 },
         uRippleCount: { value: 0 },
         uRipples: { value: this.rippleData },
-        uRipplePhysics: { value: this.ripplePhysics },
-        uRippleCurves: { value: this.rippleCurves },
+        uRippleAmplitudes: { value: this.rippleAmplitudes },
         uColorTint: { value: new THREE.Color() },
         uClarity: { value: WATER.clarity },
         uShowCurrentEffect: { value: 0 },
@@ -475,49 +433,26 @@ export class WaterSurfacePass {
 
   public update(school: School, time: number): void {
     this.updateCurrentAppearance(time);
-    for (let index = 0; index < MAX_RIPPLE_TYPES; index += 1) {
-      this.ripplePhysics[index].set(1, 0, 0, 0);
-      this.rippleCurves[index].set(1, 0, 0, 0);
-    }
-    for (
-      let index = 0;
-      index < Math.min(RIPPLE_TYPE_ORDER.length, MAX_RIPPLE_TYPES);
-      index += 1
-    ) {
-      const profile = RIPPLES.types[RIPPLE_TYPE_ORDER[index]];
-      this.ripplePhysics[index].set(
-        Math.max(profile.lifetime, 0.001),
-        profile.startRadius,
-        profile.expansionSpeed,
-        profile.distortion,
-      );
-      this.rippleCurves[index].set(
-        profile.bandSharpness,
-        profile.fadeStart,
-        profile.strengthDecay,
-        0,
-      );
-    }
-
+    // The ring's radius and fade are the same for every pixel, so they are worked out here rather than per pixel
     let activeCount = 0;
     for (const ripple of school.ripples.instances) {
-      if (
-        !ripple.alive ||
-        ripple.age < 0 ||
-        activeCount >= MAX_RIPPLES
-      ) {
-        continue;
-      }
-      const typeIndex = RIPPLE_TYPE_ORDER.indexOf(ripple.type);
-      if (typeIndex < 0 || typeIndex >= MAX_RIPPLE_TYPES) continue;
-      const encodedTypeAndStrength =
-        typeIndex * 2 + Math.min(1.999, Math.max(0, ripple.strength));
+      if (!ripple.alive || ripple.age < 0 || activeCount >= MAX_RIPPLES) continue;
+      const profile = RIPPLES.types[ripple.type];
+      const lifetime = Math.max(profile.lifetime, 0.001);
+      const fade = 1 - smoothstep(lifetime * profile.fadeStart, lifetime, ripple.age);
+      const life = Math.min(Math.max(ripple.age / lifetime, 0), 1);
+      const amplitude =
+        fade
+        * Math.min(1.999, Math.max(0, ripple.strength))
+        * (1 - life * profile.strengthDecay);
+      if (amplitude <= 0.001) continue;
       this.rippleData[activeCount].set(
         ripple.center.x,
         ripple.center.y,
-        ripple.age,
-        encodedTypeAndStrength,
+        profile.startRadius + ripple.age * profile.expansionSpeed,
+        profile.bandSharpness,
       );
+      this.rippleAmplitudes[activeCount].set(amplitude, amplitude * profile.distortion);
       activeCount += 1;
     }
     this.material.uniforms.uTime.value = time;
