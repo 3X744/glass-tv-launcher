@@ -103,9 +103,10 @@ export function randomizePond(settings: SettingsStore): void {
   settings.set([...rain, "startRadius"], 2);
   settings.set([...rain, "expansionSpeed"], 40);
   settings.set([...rain, "distortion"], 9);
-  // One ring per drop and more drops: the shader holds 64 ripples, so this shows twice as many drops at once
+  // One ring per drop. The water shader loops over every live ring for every pixel, so the stick's GPU sets the
+  // budget: ~25 rings (14 drops/s x 1.8 s) holds frame rate, where 32 drops/s (~58 rings) dropped it to ~12 fps
   settings.set([...rain, "ripplesPerEvent"], 1);
-  settings.set([...rain, "maximumActive"], 60);
-  settings.set(["ripples", "rainEmitter", "dropsPerSecond"], 32);
+  settings.set([...rain, "maximumActive"], 24);
+  settings.set(["ripples", "rainEmitter", "dropsPerSecond"], 14);
 }
 

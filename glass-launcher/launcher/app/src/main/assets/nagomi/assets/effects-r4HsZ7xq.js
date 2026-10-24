@@ -4383,21 +4383,20 @@ void main() {
     vUv = uv;
     gl_Position = vec4(position.xy, 0.0, 1.0);
   }
-`;function Rd(e){return Array.from({length:Math.max(0,Qe-1)},(t,n)=>{let r=n+1;return`if (typeIndex > ${r-.5}) profile = ${e}[${r}];`}).join(`
-    `)}var zd=`
+`,Rd=`
   precision highp float;
 
   #define MAX_RIPPLES ${Ze}
-  #define MAX_RIPPLE_TYPES ${Qe}
 
   uniform sampler2D uUnderwater;
   uniform sampler2D uDisturbance;
   uniform vec2 uResolution;
   uniform float uTime;
   uniform int uRippleCount;
+  // Per ring, worked out once per frame on the CPU: (center, radius, band sharpness) and
+  // (band amplitude, amplitude x distortion)
   uniform vec4 uRipples[MAX_RIPPLES];
-  uniform vec4 uRipplePhysics[MAX_RIPPLE_TYPES];
-  uniform vec4 uRippleCurves[MAX_RIPPLE_TYPES];
+  uniform vec2 uRippleAmplitudes[MAX_RIPPLES];
   uniform vec3 uColorTint;
   uniform float uClarity;
   uniform float uShowCurrentEffect;
@@ -4424,18 +4423,6 @@ void main() {
   uniform float uSecondaryLargeCurrentTime;
   uniform float uDetailCurrentTime;
   varying vec2 vUv;
-
-  vec4 ripplePhysics(float typeIndex) {
-    vec4 profile = uRipplePhysics[0];
-    ${Rd(`uRipplePhysics`)}
-    return profile;
-  }
-
-  vec4 rippleCurves(float typeIndex) {
-    vec4 profile = uRippleCurves[0];
-    ${Rd(`uRippleCurves`)}
-    return profile;
-  }
 
   vec2 hash22(vec2 point) {
     vec2 value = vec2(
@@ -4558,42 +4545,24 @@ void main() {
     ) * 0.13 / uResolution;
 
     float rippleShine = 0.0;
+    vec2 rippleDisplacement = vec2(0.0);
     for (int index = 0; index < MAX_RIPPLES; index++) {
       if (index >= uRippleCount) break;
 
       vec4 ripple = uRipples[index];
-      float typeIndex = floor(ripple.w * 0.5);
-      float strength = mod(ripple.w, 2.0);
-      vec4 physics = ripplePhysics(typeIndex);
-      vec4 curves = rippleCurves(typeIndex);
       vec2 delta = pixel - ripple.xy;
       float distanceToCenter = length(delta);
-      vec2 radial = delta / max(distanceToCenter, 0.001);
-      float radius =
-        physics.y
-        + ripple.z * physics.z;
-      float signedDistance = distanceToCenter - radius;
-      float fade = 1.0 - smoothstep(
-        physics.x * curves.y,
-        physics.x,
-        ripple.z
-      );
-      float life = clamp(ripple.z / max(physics.x, 0.001), 0.0, 1.0);
-      float distortionBand =
-        exp(-abs(signedDistance) * curves.x)
-        * fade
-        * strength
-        * (1.0 - life * curves.z);
+      float signedDistance = distanceToCenter - ripple.z;
+      float band = abs(signedDistance) * ripple.w;
+      // Glass TV: skip rings too far from this pixel to matter (exp(-6) of the band)
+      ${dd.active?`if (band > 6.0) continue;`:``}
+      vec2 amplitude = uRippleAmplitudes[index] * exp(-band);
       float direction = signedDistance < 0.0 ? -1.0 : 1.0;
-      rippleShine += direction * distortionBand;
-
-      displacement +=
-        vec2(radial.x, -radial.y)
-        * direction
-        * distortionBand
-        * physics.w
-        / uResolution;
+      rippleShine += direction * amplitude.x;
+      rippleDisplacement +=
+        delta * (direction * amplitude.y / max(distanceToCenter, 0.001));
     }
+    displacement += vec2(rippleDisplacement.x, -rippleDisplacement.y) / uResolution;
 
     vec2 localDisturbance = texture2D(uDisturbance, vUv).xy;
     displacement +=
@@ -4686,7 +4655,7 @@ void main() {
 
     gl_FragColor = vec4(color, 1.0);
   }
-`,Bd=[`large`,`secondaryLarge`,`detail`];function Vd(){return{colorTint:new J().setRGB(...ze.colorTint),clarity:ze.clarity,largeCurrentColor:new J().setRGB(...ze.largeCurrentColor),largeCurrentCoreColor:new J().setRGB(...ze.largeCurrentCoreColor),largeCellSize:ze.largeCellSize,largeCurrentOpacity:ze.largeCurrentOpacity,largeCurrentSpeed:ze.largeCurrentSpeed,secondaryLargeCurrentColor:new J().setRGB(...ze.secondaryLargeCurrentColor),secondaryLargeCurrentCoreColor:new J().setRGB(...ze.secondaryLargeCurrentCoreColor),secondaryLargeCellSize:ze.secondaryLargeCellSize,secondaryLargeCurrentOpacity:ze.secondaryLargeCurrentOpacity,secondaryLargeCurrentSpeed:ze.secondaryLargeCurrentSpeed,detailCurrentColor:new J().setRGB(...ze.detailCurrentColor),detailCurrentCoreColor:new J().setRGB(...ze.detailCurrentCoreColor),detailCellSize:ze.detailCellSize,detailCurrentOpacity:ze.detailCurrentOpacity,detailCurrentSpeed:ze.detailCurrentSpeed}}var Hd=class{constructor(e,t){N(this,`mesh`,void 0),N(this,`material`,void 0),N(this,`rippleData`,Array.from({length:Ze},()=>new wr)),N(this,`ripplePhysics`,Array.from({length:Qe},()=>new wr(1,0,0,0))),N(this,`rippleCurves`,Array.from({length:Qe},()=>new wr(1,0,0,0))),N(this,`currentAppearance`,Vd()),N(this,`targetAppearance`,Vd()),N(this,`currentTimes`,{large:0,secondaryLarge:0,detail:0}),N(this,`previousTime`,-1),this.material=new fo({uniforms:{uUnderwater:{value:e},uDisturbance:{value:t},uResolution:{value:new G(Ge,Ke)},uTime:{value:0},uRippleCount:{value:0},uRipples:{value:this.rippleData},uRipplePhysics:{value:this.ripplePhysics},uRippleCurves:{value:this.rippleCurves},uColorTint:{value:new J},uClarity:{value:ze.clarity},uShowCurrentEffect:{value:0},uLargeCellSize:{value:0},uLargeCurrentOpacity:{value:0},uSecondaryLargeCellSize:{value:0},uSecondaryLargeCurrentOpacity:{value:0},uDetailCellSize:{value:0},uDetailCurrentOpacity:{value:0},uLargeCurrentColor:{value:new J},uLargeCurrentCoreColor:{value:new J},uSecondaryLargeCurrentColor:{value:new J},uSecondaryLargeCurrentCoreColor:{value:new J},uDetailCurrentColor:{value:new J},uDetailCurrentCoreColor:{value:new J},uCurrentAmplitude:{value:0},uWaveDirectionA:{value:new G},uWaveDirectionB:{value:new G},uWaveDirectionC:{value:new G},uWaveFrequency:{value:new K},uWaveSpeed:{value:new K},uWaveStrength:{value:new K},uLargeCurrentTime:{value:0},uSecondaryLargeCurrentTime:{value:0},uDetailCurrentTime:{value:0}},vertexShader:Ld,fragmentShader:zd,depthTest:!1,depthWrite:!1,toneMapped:!1}),this.mesh=new ka(new no(2,2),this.material),this.mesh.frustumCulled=!1}resize(e,t){this.material.uniforms.uResolution.value.set(e,t)}refreshConfig(){this.targetAppearance=Vd()}update(e,t){this.updateCurrentAppearance(t);for(let e=0;e<Qe;e+=1)this.ripplePhysics[e].set(1,0,0,0),this.rippleCurves[e].set(1,0,0,0);for(let e=0;e<Math.min(Qu.length,Qe);e+=1){let t=Re.types[Qu[e]];this.ripplePhysics[e].set(Math.max(t.lifetime,.001),t.startRadius,t.expansionSpeed,t.distortion),this.rippleCurves[e].set(t.bandSharpness,t.fadeStart,t.strengthDecay,0)}let n=0;for(let t of e.ripples.instances){if(!t.alive||t.age<0||n>=Ze)continue;let e=Qu.indexOf(t.type);if(e<0||e>=Qe)continue;let r=e*2+Math.min(1.999,Math.max(0,t.strength));this.rippleData[n].set(t.center.x,t.center.y,t.age,r),n+=1}this.material.uniforms.uTime.value=t,this.material.uniforms.uRippleCount.value=n,this.material.uniforms.uColorTint.value.copy(this.currentAppearance.colorTint),this.material.uniforms.uClarity.value=this.currentAppearance.clarity,this.material.uniforms.uShowCurrentEffect.value=+!!ze.showCurrentEffect,this.material.uniforms.uLargeCellSize.value=this.currentAppearance.largeCellSize,this.material.uniforms.uLargeCurrentOpacity.value=this.currentAppearance.largeCurrentOpacity,this.material.uniforms.uSecondaryLargeCellSize.value=this.currentAppearance.secondaryLargeCellSize,this.material.uniforms.uSecondaryLargeCurrentOpacity.value=this.currentAppearance.secondaryLargeCurrentOpacity,this.material.uniforms.uDetailCellSize.value=this.currentAppearance.detailCellSize,this.material.uniforms.uDetailCurrentOpacity.value=this.currentAppearance.detailCurrentOpacity,this.material.uniforms.uLargeCurrentColor.value.copy(this.currentAppearance.largeCurrentColor),this.material.uniforms.uLargeCurrentCoreColor.value.copy(this.currentAppearance.largeCurrentCoreColor),this.material.uniforms.uSecondaryLargeCurrentColor.value.copy(this.currentAppearance.secondaryLargeCurrentColor),this.material.uniforms.uSecondaryLargeCurrentCoreColor.value.copy(this.currentAppearance.secondaryLargeCurrentCoreColor),this.material.uniforms.uDetailCurrentColor.value.copy(this.currentAppearance.detailCurrentColor),this.material.uniforms.uDetailCurrentCoreColor.value.copy(this.currentAppearance.detailCurrentCoreColor);let[r,i,a]=ze.currentDistortion.waves;this.material.uniforms.uCurrentAmplitude.value=ze.currentDistortion.amplitude,this.material.uniforms.uWaveDirectionA.value.set(...r.direction),this.material.uniforms.uWaveDirectionB.value.set(...i.direction),this.material.uniforms.uWaveDirectionC.value.set(...a.direction),this.material.uniforms.uWaveFrequency.value.set(r.frequency,i.frequency,a.frequency),this.material.uniforms.uWaveSpeed.value.set(r.speed,i.speed,a.speed),this.material.uniforms.uWaveStrength.value.set(r.strength,i.strength,a.strength),this.material.uniforms.uLargeCurrentTime.value=this.currentTimes.large,this.material.uniforms.uSecondaryLargeCurrentTime.value=this.currentTimes.secondaryLarge,this.material.uniforms.uDetailCurrentTime.value=this.currentTimes.detail}updateCurrentAppearance(e){if(this.previousTime<0){for(let t of Bd)this.currentTimes[t]=e;this.previousTime=e;return}let t=Math.min(.1,Math.max(0,e-this.previousTime));this.previousTime=e;let n=1-Math.exp(-t*2.25),r=this.currentAppearance,i=this.targetAppearance;r.colorTint.lerp(i.colorTint,n),r.clarity+=(i.clarity-r.clarity)*n,r.largeCurrentColor.lerp(i.largeCurrentColor,n),r.largeCurrentCoreColor.lerp(i.largeCurrentCoreColor,n),r.secondaryLargeCurrentColor.lerp(i.secondaryLargeCurrentColor,n),r.secondaryLargeCurrentCoreColor.lerp(i.secondaryLargeCurrentCoreColor,n),r.detailCurrentColor.lerp(i.detailCurrentColor,n),r.detailCurrentCoreColor.lerp(i.detailCurrentCoreColor,n),r.largeCellSize+=(i.largeCellSize-r.largeCellSize)*n,r.largeCurrentOpacity+=(i.largeCurrentOpacity-r.largeCurrentOpacity)*n,r.largeCurrentSpeed+=(i.largeCurrentSpeed-r.largeCurrentSpeed)*n,r.secondaryLargeCellSize+=(i.secondaryLargeCellSize-r.secondaryLargeCellSize)*n,r.secondaryLargeCurrentOpacity+=(i.secondaryLargeCurrentOpacity-r.secondaryLargeCurrentOpacity)*n,r.secondaryLargeCurrentSpeed+=(i.secondaryLargeCurrentSpeed-r.secondaryLargeCurrentSpeed)*n,r.detailCellSize+=(i.detailCellSize-r.detailCellSize)*n,r.detailCurrentOpacity+=(i.detailCurrentOpacity-r.detailCurrentOpacity)*n,r.detailCurrentSpeed+=(i.detailCurrentSpeed-r.detailCurrentSpeed)*n,this.currentTimes.large+=t*r.largeCurrentSpeed,this.currentTimes.secondaryLarge+=t*r.secondaryLargeCurrentSpeed,this.currentTimes.detail+=t*r.detailCurrentSpeed}},Ud=`
+`,zd=[`large`,`secondaryLarge`,`detail`];function Bd(){return{colorTint:new J().setRGB(...ze.colorTint),clarity:ze.clarity,largeCurrentColor:new J().setRGB(...ze.largeCurrentColor),largeCurrentCoreColor:new J().setRGB(...ze.largeCurrentCoreColor),largeCellSize:ze.largeCellSize,largeCurrentOpacity:ze.largeCurrentOpacity,largeCurrentSpeed:ze.largeCurrentSpeed,secondaryLargeCurrentColor:new J().setRGB(...ze.secondaryLargeCurrentColor),secondaryLargeCurrentCoreColor:new J().setRGB(...ze.secondaryLargeCurrentCoreColor),secondaryLargeCellSize:ze.secondaryLargeCellSize,secondaryLargeCurrentOpacity:ze.secondaryLargeCurrentOpacity,secondaryLargeCurrentSpeed:ze.secondaryLargeCurrentSpeed,detailCurrentColor:new J().setRGB(...ze.detailCurrentColor),detailCurrentCoreColor:new J().setRGB(...ze.detailCurrentCoreColor),detailCellSize:ze.detailCellSize,detailCurrentOpacity:ze.detailCurrentOpacity,detailCurrentSpeed:ze.detailCurrentSpeed}}function Vd(e,t,n){let r=Math.min(Math.max((n-e)/(t-e),0),1);return r*r*(3-2*r)}var Hd=class{constructor(e,t){N(this,`mesh`,void 0),N(this,`material`,void 0),N(this,`rippleData`,Array.from({length:Ze},()=>new wr)),N(this,`rippleAmplitudes`,Array.from({length:Ze},()=>new G)),N(this,`currentAppearance`,Bd()),N(this,`targetAppearance`,Bd()),N(this,`currentTimes`,{large:0,secondaryLarge:0,detail:0}),N(this,`previousTime`,-1),this.material=new fo({uniforms:{uUnderwater:{value:e},uDisturbance:{value:t},uResolution:{value:new G(Ge,Ke)},uTime:{value:0},uRippleCount:{value:0},uRipples:{value:this.rippleData},uRippleAmplitudes:{value:this.rippleAmplitudes},uColorTint:{value:new J},uClarity:{value:ze.clarity},uShowCurrentEffect:{value:0},uLargeCellSize:{value:0},uLargeCurrentOpacity:{value:0},uSecondaryLargeCellSize:{value:0},uSecondaryLargeCurrentOpacity:{value:0},uDetailCellSize:{value:0},uDetailCurrentOpacity:{value:0},uLargeCurrentColor:{value:new J},uLargeCurrentCoreColor:{value:new J},uSecondaryLargeCurrentColor:{value:new J},uSecondaryLargeCurrentCoreColor:{value:new J},uDetailCurrentColor:{value:new J},uDetailCurrentCoreColor:{value:new J},uCurrentAmplitude:{value:0},uWaveDirectionA:{value:new G},uWaveDirectionB:{value:new G},uWaveDirectionC:{value:new G},uWaveFrequency:{value:new K},uWaveSpeed:{value:new K},uWaveStrength:{value:new K},uLargeCurrentTime:{value:0},uSecondaryLargeCurrentTime:{value:0},uDetailCurrentTime:{value:0}},vertexShader:Ld,fragmentShader:Rd,depthTest:!1,depthWrite:!1,toneMapped:!1}),this.mesh=new ka(new no(2,2),this.material),this.mesh.frustumCulled=!1}resize(e,t){this.material.uniforms.uResolution.value.set(e,t)}refreshConfig(){this.targetAppearance=Bd()}update(e,t){this.updateCurrentAppearance(t);let n=0;for(let t of e.ripples.instances){if(!t.alive||t.age<0||n>=Ze)continue;let e=Re.types[t.type],r=Math.max(e.lifetime,.001),i=1-Vd(r*e.fadeStart,r,t.age),a=Math.min(Math.max(t.age/r,0),1),o=i*Math.min(1.999,Math.max(0,t.strength))*(1-a*e.strengthDecay);o<=.001||(this.rippleData[n].set(t.center.x,t.center.y,e.startRadius+t.age*e.expansionSpeed,e.bandSharpness),this.rippleAmplitudes[n].set(o,o*e.distortion),n+=1)}this.material.uniforms.uTime.value=t,this.material.uniforms.uRippleCount.value=n,this.material.uniforms.uColorTint.value.copy(this.currentAppearance.colorTint),this.material.uniforms.uClarity.value=this.currentAppearance.clarity,this.material.uniforms.uShowCurrentEffect.value=+!!ze.showCurrentEffect,this.material.uniforms.uLargeCellSize.value=this.currentAppearance.largeCellSize,this.material.uniforms.uLargeCurrentOpacity.value=this.currentAppearance.largeCurrentOpacity,this.material.uniforms.uSecondaryLargeCellSize.value=this.currentAppearance.secondaryLargeCellSize,this.material.uniforms.uSecondaryLargeCurrentOpacity.value=this.currentAppearance.secondaryLargeCurrentOpacity,this.material.uniforms.uDetailCellSize.value=this.currentAppearance.detailCellSize,this.material.uniforms.uDetailCurrentOpacity.value=this.currentAppearance.detailCurrentOpacity,this.material.uniforms.uLargeCurrentColor.value.copy(this.currentAppearance.largeCurrentColor),this.material.uniforms.uLargeCurrentCoreColor.value.copy(this.currentAppearance.largeCurrentCoreColor),this.material.uniforms.uSecondaryLargeCurrentColor.value.copy(this.currentAppearance.secondaryLargeCurrentColor),this.material.uniforms.uSecondaryLargeCurrentCoreColor.value.copy(this.currentAppearance.secondaryLargeCurrentCoreColor),this.material.uniforms.uDetailCurrentColor.value.copy(this.currentAppearance.detailCurrentColor),this.material.uniforms.uDetailCurrentCoreColor.value.copy(this.currentAppearance.detailCurrentCoreColor);let[r,i,a]=ze.currentDistortion.waves;this.material.uniforms.uCurrentAmplitude.value=ze.currentDistortion.amplitude,this.material.uniforms.uWaveDirectionA.value.set(...r.direction),this.material.uniforms.uWaveDirectionB.value.set(...i.direction),this.material.uniforms.uWaveDirectionC.value.set(...a.direction),this.material.uniforms.uWaveFrequency.value.set(r.frequency,i.frequency,a.frequency),this.material.uniforms.uWaveSpeed.value.set(r.speed,i.speed,a.speed),this.material.uniforms.uWaveStrength.value.set(r.strength,i.strength,a.strength),this.material.uniforms.uLargeCurrentTime.value=this.currentTimes.large,this.material.uniforms.uSecondaryLargeCurrentTime.value=this.currentTimes.secondaryLarge,this.material.uniforms.uDetailCurrentTime.value=this.currentTimes.detail}updateCurrentAppearance(e){if(this.previousTime<0){for(let t of zd)this.currentTimes[t]=e;this.previousTime=e;return}let t=Math.min(.1,Math.max(0,e-this.previousTime));this.previousTime=e;let n=1-Math.exp(-t*2.25),r=this.currentAppearance,i=this.targetAppearance;r.colorTint.lerp(i.colorTint,n),r.clarity+=(i.clarity-r.clarity)*n,r.largeCurrentColor.lerp(i.largeCurrentColor,n),r.largeCurrentCoreColor.lerp(i.largeCurrentCoreColor,n),r.secondaryLargeCurrentColor.lerp(i.secondaryLargeCurrentColor,n),r.secondaryLargeCurrentCoreColor.lerp(i.secondaryLargeCurrentCoreColor,n),r.detailCurrentColor.lerp(i.detailCurrentColor,n),r.detailCurrentCoreColor.lerp(i.detailCurrentCoreColor,n),r.largeCellSize+=(i.largeCellSize-r.largeCellSize)*n,r.largeCurrentOpacity+=(i.largeCurrentOpacity-r.largeCurrentOpacity)*n,r.largeCurrentSpeed+=(i.largeCurrentSpeed-r.largeCurrentSpeed)*n,r.secondaryLargeCellSize+=(i.secondaryLargeCellSize-r.secondaryLargeCellSize)*n,r.secondaryLargeCurrentOpacity+=(i.secondaryLargeCurrentOpacity-r.secondaryLargeCurrentOpacity)*n,r.secondaryLargeCurrentSpeed+=(i.secondaryLargeCurrentSpeed-r.secondaryLargeCurrentSpeed)*n,r.detailCellSize+=(i.detailCellSize-r.detailCellSize)*n,r.detailCurrentOpacity+=(i.detailCurrentOpacity-r.detailCurrentOpacity)*n,r.detailCurrentSpeed+=(i.detailCurrentSpeed-r.detailCurrentSpeed)*n,this.currentTimes.large+=t*r.largeCurrentSpeed,this.currentTimes.secondaryLarge+=t*r.secondaryLargeCurrentSpeed,this.currentTimes.detail+=t*r.detailCurrentSpeed}},Ud=`
   varying vec2 vUv;
 
   void main() {
