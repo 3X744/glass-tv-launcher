@@ -7,7 +7,7 @@
 No ads, no tracking, a clean home screen, and a koi pond that swims across your TV when it's idle.
 
 [![Fire TV](https://img.shields.io/badge/Fire_TV-Stick-FF9900?style=flat-square)](#what-you-need)
-[![Android 11](https://img.shields.io/badge/Android-11_(API_30)-3DDC84?style=flat-square&logo=android&logoColor=white)](glass-launcher/launcher)
+[![Android 9+](https://img.shields.io/badge/Android-9%2B_(API_28)-3DDC84?style=flat-square&logo=android&logoColor=white)](glass-launcher/launcher)
 [![No root](https://img.shields.io/badge/root-not_needed-blue?style=flat-square)](#undoing-everything)
 [![Licence](https://img.shields.io/badge/licence-MIT_%2B_PolyForm_NC-lightgrey?style=flat-square)](#credits-and-licences)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support_me-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/rama2019)
@@ -111,9 +111,19 @@ Switches off Amazon's telemetry, ad and recommendation services and preloaded ap
 
 | | |
 |---|---|
-| 📺 **Fire TV Stick** | Built and tested on a Fire TV Stick 4K Max (2nd gen, Fire OS 8.1); others may work |
+| 📺 **Fire TV Stick** | Fire OS 7 or newer (Android 9+). Built and tested on a Fire TV Stick 4K Max (2nd gen, Fire OS 8.1); see [Compatibility](#compatibility) |
 | 💻 **A computer** | On the same Wi-Fi as the stick, with **git**, **JDK 17+**, the **Android SDK** (Android Studio installs it) and `adb` |
 | 🐍 **Python 3** | Only for upstream's debloat shell scripts (macOS/Linux) |
+
+### Compatibility
+
+| Fire OS | Android | Status |
+|---|---|---|
+| **8.x** | 11 (API 30) | ✅ Tested on a Fire TV Stick 4K Max (2nd gen, Fire OS 8.1) |
+| **7.x** | 9 (API 28) | 🧪 Installs, but untested on a real stick. The home screen, app grid and app launching work on an Android 9 TV emulator; the Home-button takeover, the Fire TV Home tile and the koi pond (needs WebGL from the stick's WebView) haven't been checked on Fire OS 7 hardware |
+| **6.x and older** | 7.1 and below | ❌ Won't install |
+
+Other Android TV / Google TV devices on Android 9+ can install it too, but they're untested, and the Fire TV–specific parts (Home button, Fire TV Home tile, debloat scripts) won't apply. If you try it on another stick or Fire OS version, please [open an issue](https://github.com/R4maa/glass-tv-launcher/issues) and say what worked.
 
 <a id="on-the-tv"></a>
 
