@@ -69,11 +69,18 @@ final class AppLoader {
         int dockLimit = context.getSharedPreferences("focus", Context.MODE_PRIVATE)
                 .getInt("dockTileLimit", 5);
         dockLimit = Math.max(1, Math.min(5, dockLimit));
+        List<AppInfo> overflowDock = new ArrayList<>();
         for (String pkg : dock) {
-            // Apps beyond the selected dock limit stay available in the grid.
-            if (result.dock.size() >= dockLimit) continue;
-            AppInfo app = apps.remove(pkg);
-            if (app != null) result.dock.add(app);
+            AppInfo app = apps.get(pkg);
+            if (app == null) continue;
+            apps.remove(pkg);
+            if (result.dock.size() < dockLimit) {
+                result.dock.add(app);
+            } else {
+                // When the dock shrinks, preserve its former left-to-right order at the
+                // very top of the grid, directly below the remaining favorites.
+                overflowDock.add(app);
+            }
         }
         result.grid.addAll(apps.values());
         Collator collator = Collator.getInstance();
@@ -83,6 +90,12 @@ final class AppLoader {
         List<String> order = readList(context, "order.txt");
         if (!order.isEmpty()) {
             result.grid.sort((a, b) -> Integer.compare(rank(order, a), rank(order, b)));
+        }
+        // Prioritize apps displaced by a smaller dock over the previous grid ordering.
+        // This also means increasing the dock size promotes these exact tiles back into favorites.
+        if (!overflowDock.isEmpty()) {
+            result.grid.removeAll(overflowDock);
+            result.grid.addAll(0, overflowDock);
         }
         // If the dock has fewer saved favorites than the selected width, promote apps from
         // the beginning of the visible grid (the tiles directly underneath the dock), rather
