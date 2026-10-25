@@ -979,21 +979,36 @@ public class HomeActivity extends Activity {
 
         inputsMenu.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         // Lock the width to the content: a divider (a plain View) would otherwise stretch the menu
-        // across the whole screen in the real layout pass
+        // across the whole screen in the real layout pass.
         inputsMenu.getLayoutParams().width = inputsMenu.getMeasuredWidth();
+
+        // The display-scale preference also applies to every settings and app context menu.
+        // Keep the menu's right edge anchored to the pill in the top bar, and its left edge to tiles.
+        float menuScale = Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f * 0.9f;
+        inputsMenu.setPivotX(zone == TOP ? inputsMenu.getMeasuredWidth() : 0f);
+        inputsMenu.setPivotY(0f);
+        inputsMenu.setScaleX(menuScale);
+        inputsMenu.setScaleY(menuScale);
+        float menuWidth = inputsMenu.getMeasuredWidth();
+        float menuHeight = inputsMenu.getMeasuredHeight() * menuScale;
+
         int[] a = new int[2], r = new int[2];
         anchor.getLocationInWindow(a);
         root.getLocationInWindow(r);
         float x = a[0] - r[0];
-        // Under a top-bar pill the menu hangs from the pill's right edge; under a tile, its left
-        if (zone == TOP) x += anchor.getWidth() * anchor.getScaleX() - inputsMenu.getMeasuredWidth();
-        x = Math.max(dp(24), Math.min(x, root.getWidth() - inputsMenu.getMeasuredWidth() - dp(24)));
+        if (zone == TOP) x += anchor.getWidth() * anchor.getScaleX() - menuWidth;
+        // Account for the transformed bounds when clamping the menu to the screen.
+        float visualLeftOffset = zone == TOP ? menuWidth * (1f - menuScale) : 0f;
+        float minX = dp(24) - visualLeftOffset;
+        float maxX = root.getWidth() - dp(24) - menuWidth * menuScale - visualLeftOffset;
+        x = Math.max(minX, Math.min(x, maxX));
+
         float y = a[1] - r[1] + anchor.getHeight() * anchor.getScaleY() + dp(12);
-        if (y + inputsMenu.getMeasuredHeight() > root.getHeight() - dp(16)) {
-            y = a[1] - r[1] - inputsMenu.getMeasuredHeight() - dp(12);
+        if (y + menuHeight > root.getHeight() - dp(16)) {
+            y = a[1] - r[1] - menuHeight - dp(12);
         }
-        // Keep menus inside the screen, including when opened from a low grid row.
-        float maxY = Math.max(dp(16), root.getHeight() - inputsMenu.getMeasuredHeight() - dp(16));
+        // Keep scaled menus inside the screen, including when opened from a low grid row.
+        float maxY = Math.max(dp(16), root.getHeight() - menuHeight - dp(16));
         y = Math.max(dp(16), Math.min(y, maxY));
         inputsMenu.setX(x);
         inputsMenu.setY(y - dp(8));
