@@ -744,11 +744,20 @@ public class HomeActivity extends Activity {
         float l, t, w, h;
         if (zone == TOP) {
             View p = pills[topIdx];
-            float s = 1f, pad = dp(4);
+            // The pill row is scaled from its top-right corner. Mirror that transform when
+            // positioning the highlight, otherwise the white focus glass stays at 100%.
+            float s = pillRow.getScaleX();
+            float pad = dp(4) * s;
+            float pivotX = pillRow.getPivotX();
+            float pivotY = pillRow.getPivotY();
+            float centerX = pillRow.getLeft() + pivotX
+                    + (p.getLeft() + p.getWidth() / 2f - pivotX) * s;
+            float centerY = pillRow.getTop() + pivotY
+                    + (p.getTop() + p.getHeight() / 2f - pivotY) * s;
             w = p.getWidth() * s + 2 * pad;
             h = p.getHeight() * s + 2 * pad;
-            l = pillRow.getLeft() + p.getLeft() + p.getWidth() / 2f - w / 2f;
-            t = pillRow.getTop() + p.getTop() + p.getHeight() / 2f - h / 2f;
+            l = centerX - w / 2f;
+            t = centerY - h / 2f;
             highlight.moveTo(l, t, w, h, h / 2f);
             return;
         }
