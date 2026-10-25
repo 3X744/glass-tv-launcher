@@ -78,7 +78,7 @@ public class HomeActivity extends Activity {
     private static final String MUSIC_APP = "com.spotify.tv.android";
     private static final int NEUTRAL_GLOW = 0xFF8E8E9E;
 
-    private View root, page, band, glow, pillRow;
+    private View root, page, band, glow, pillRow, header;
     private View[] pills;
     private GlassHighlight highlight;
     private TextView greeting, dockTitle, wifiName, mediaText, moveHint;
@@ -169,6 +169,7 @@ public class HomeActivity extends Activity {
         root = findViewById(R.id.root);
         page = findViewById(R.id.page);
         page.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> applyDisplayScale());
+        header = findViewById(R.id.header);
         band = findViewById(R.id.band);
         glow = findViewById(R.id.glow);
         highlight = findViewById(R.id.highlight);
@@ -345,10 +346,12 @@ public class HomeActivity extends Activity {
         LayoutInflater inflater = LayoutInflater.from(this);
         if (dockApps.isEmpty()) return;
 
-        // Fit the dock to its actual tile count. Three tiles keep the comfortable 180dp size;
-        // five tiles share the full row and shrink evenly instead of overflowing the screen.
+        // Keep the normal 180dp tiles for up to four apps. With five apps, share the available
+        // row evenly and shrink both tiles and icons as needed so the fifth tile remains visible.
         int count = dockApps.size();
-        int rowWidth = Math.min(Math.round(dp(816)), Math.max(Math.round(dp(204)), count * Math.round(dp(204))));
+        int preferredWidth = count * Math.round(dp(204));
+        int availableWidth = Math.max(Math.round(dp(400)), page.getWidth() - Math.round(dp(144)));
+        int rowWidth = Math.min(Math.min(Math.round(dp(816)), availableWidth), preferredWidth);
         FrameLayout.LayoutParams rowParams = (FrameLayout.LayoutParams) dockRow.getLayoutParams();
         rowParams.width = rowWidth;
         dockRow.setLayoutParams(rowParams);
@@ -358,7 +361,7 @@ public class HomeActivity extends Activity {
 
         int cellWidth = rowWidth / count;
         int tileWidth = Math.min(Math.round(dp(180)), cellWidth - Math.round(dp(24)));
-        tileWidth = Math.max(Math.round(dp(100)), tileWidth);
+        tileWidth = Math.max(Math.round(dp(80)), tileWidth);
         int tileHeight = Math.round(tileWidth * 9f / 16f);
         dockRow.setGravity(Gravity.CENTER_HORIZONTAL);
         for (AppInfo app : dockApps) {
@@ -370,7 +373,7 @@ public class HomeActivity extends Activity {
             tileParams.topMargin = Math.round(dp(10));
             tile.setLayoutParams(tileParams);
             ImageView icon = cell.findViewById(R.id.icon);
-            int iconSize = Math.round(dp(54));
+            int iconSize = Math.min(Math.round(dp(54)), Math.round(tileWidth * 0.36f));
             icon.setLayoutParams(new FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER));
             Tiles.bind(cell, app);
             // The big title above the dock already names the focused app; a second label under it competed
@@ -548,7 +551,7 @@ public class HomeActivity extends Activity {
         items.add(MenuItem.caption("Affichage et tuiles"));
         items.add(MenuItem.divider());
         items.add(new MenuItem("Nombre de tuiles  ›", tileLimit + " sur la ligne", this::openDockCountMenu));
-        items.add(new MenuItem("Échelle d’affichage  ›", scale + " %", this::openDisplayScaleMenu));
+        items.add(new MenuItem("Taille des infos en haut  ›", scale + " %", this::openDisplayScaleMenu));
         openMenu(pills[PILL_SETTINGS], items);
         menuBack = () -> openSettingsMenuAt(2);
     }
@@ -580,7 +583,7 @@ public class HomeActivity extends Activity {
         int current = prefs.getInt("displayScale", 100);
         int[] scales = {70, 75, 80, 85, 90, 95, 100};
         List<MenuItem> items = new ArrayList<>();
-        items.add(MenuItem.caption("Échelle d’affichage"));
+        items.add(MenuItem.caption("Taille des infos en haut"));
         items.add(MenuItem.divider());
         int selected = -1;
         for (int scale : scales) {
@@ -595,22 +598,25 @@ public class HomeActivity extends Activity {
     private void setDisplayScale(int scale) {
         prefs.edit().putInt("displayScale", scale).apply();
         applyDisplayScale();
-        notice("✓  Échelle d’affichage : " + scale + " %");
+        notice("✓  Taille des infos : " + scale + " %");
     }
 
     /**
-     * Scale the designed page, not the root container. Scaling the root also transforms its
-     * clipping bounds and overlays, which can leave the UI cut off or visually off-centre.
-     * Keep the page horizontally centred and anchor its top edge so the dock/grid move upward
-     * proportionally on smaller scale settings.
+     * This setting changes only the information at the top of the screen.
+     * Dock and grid tiles retain their designed size; the header shrinks from its top-left
+     * corner and the status pills shrink from their top-right corner.
      */
     private void applyDisplayScale() {
-        if (page == null || page.getWidth() == 0 || page.getHeight() == 0) return;
+        if (header == null || pillRow == null || header.getWidth() == 0 || pillRow.getWidth() == 0) return;
         float scale = Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f;
-        page.setPivotX(page.getWidth() / 2f);
-        page.setPivotY(0f);
-        page.setScaleX(scale);
-        page.setScaleY(scale);
+        header.setPivotX(0f);
+        header.setPivotY(0f);
+        header.setScaleX(scale);
+        header.setScaleY(scale);
+        pillRow.setPivotX(pillRow.getWidth());
+        pillRow.setPivotY(0f);
+        pillRow.setScaleX(scale);
+        pillRow.setScaleY(scale);
     }
 
     private static final int[] SCREENSAVER_MINUTES = {0, 2, 5, 10, 15, 30};
