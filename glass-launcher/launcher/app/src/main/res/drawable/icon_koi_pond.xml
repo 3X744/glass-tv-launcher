@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- App-style icon of the "Koi Pond" tile (opens the screensaver): pond-green card with a koi -->
+<!-- App-style icon for the clock screensaver tile -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:width="96dp" android:height="96dp">
         <shape android:shape="rectangle">
             <corners android:radius="20dp" />
-            <gradient android:angle="315" android:startColor="#FF3E9E86" android:endColor="#FF0F3D36" />
+            <gradient android:angle="315" android:startColor="#FF34343C" android:endColor="#FF101014" />
         </shape>
     </item>
-    <item android:width="72dp" android:height="72dp" android:gravity="center" android:drawable="@drawable/ic_koi" />
+    <item android:width="72dp" android:height="72dp" android:gravity="center" android:drawable="@drawable/ic_clock_face" />
 </layer-list>
