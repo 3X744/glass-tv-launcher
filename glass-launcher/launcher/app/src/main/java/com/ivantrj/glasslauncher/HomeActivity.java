@@ -355,14 +355,19 @@ public class HomeActivity extends Activity {
         FrameLayout.LayoutParams rowParams = (FrameLayout.LayoutParams) dockRow.getLayoutParams();
         rowParams.width = rowWidth;
         dockRow.setLayoutParams(rowParams);
-        FrameLayout.LayoutParams bandParams = (FrameLayout.LayoutParams) band.getLayoutParams();
-        bandParams.width = rowWidth + Math.round(dp(24));
-        band.setLayoutParams(bandParams);
-
         int cellWidth = rowWidth / count;
         int tileWidth = Math.min(Math.round(dp(180)), cellWidth - Math.round(dp(24)));
         tileWidth = Math.max(Math.round(dp(80)), tileWidth);
         int tileHeight = Math.round(tileWidth * 9f / 16f);
+
+        // Center the band on the actual tile area, even when five tiles shrink.
+        FrameLayout.LayoutParams bandParams = (FrameLayout.LayoutParams) band.getLayoutParams();
+        int bandHeight = tileHeight + Math.round(dp(40));
+        bandParams.width = rowWidth + Math.round(dp(24));
+        bandParams.height = bandHeight;
+        bandParams.topMargin = dockRow.getTop() + Math.round(dp(10))
+                + tileHeight / 2 - bandHeight / 2;
+        band.setLayoutParams(bandParams);
         dockRow.setGravity(Gravity.CENTER_HORIZONTAL);
         for (AppInfo app : dockApps) {
             View cell = inflater.inflate(R.layout.item_tile, dockRow, false);
@@ -668,18 +673,35 @@ public class HomeActivity extends Activity {
             items.add(new MenuItem("Opens Amazon's home  ·  Home returns here", null));
         }
         items.add(MenuItem.divider());
-        items.add(new MenuItem("Move", this::startMove));
+        items.add(new MenuItem("Déplacer", this::startMove));
         // The Fire TV Home and Koi Pond tiles aren't real apps, so they have no info page
-        if (!AppLoader.isShortcut(app.packageName)) items.add(new MenuItem("App info", this::openAppInfo));
+        if (!AppLoader.isShortcut(app.packageName)) {
+            items.add(new MenuItem("Infos de l'application", this::openAppInfo));
+            items.add(new MenuItem("Forcer l'arrêt", this::openAppInfo));
+            items.add(new MenuItem("Désinstaller", this::uninstallApp));
+        }
         openMenu(focusedTileView(), items);
     }
 
-    /** That app's system info page (force stop, clear cache...). */
+    /** Opens Android/Fire OS app details, where system actions such as Force stop are available. */
     private void openAppInfo() {
         AppInfo app = focusedApp();
-        if (app == null) return;
+        if (app == null || AppLoader.isShortcut(app.packageName)) return;
         launch(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", app.packageName, null)));
+    }
+
+    /** Requests the system package installer to uninstall the selected application. */
+    private void uninstallApp() {
+        AppInfo app = focusedApp();
+        if (app == null || AppLoader.isShortcut(app.packageName)) return;
+        Intent intent = new Intent(Intent.ACTION_DELETE,
+                Uri.fromParts("package", app.packageName, null));
+        try {
+            launch(intent);
+        } catch (ActivityNotFoundException e) {
+            openAppInfo();
+        }
     }
 
     private AppInfo focusedApp() {
@@ -1070,6 +1092,13 @@ public class HomeActivity extends Activity {
         moveHint.setText(text);
         moveHint.setTypeface(Fonts.outfit(this, style == HINT_NOTICE ? 500 : 400));
         moveHint.setTextSize(style == HINT_NOTICE ? 20 : 17);
+        // Confirmation bars follow the selected top-information scale.
+        float noticeScale = style == HINT_NOTICE
+                ? Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f : 1f;
+        moveHint.setScaleX(noticeScale);
+        moveHint.setScaleY(noticeScale);
+        moveHint.setPivotX(moveHint.getWidth() / 2f);
+        moveHint.setPivotY(0f);
         if (style == HINT_CAPTION) {
             moveHint.setBackground(null);
             moveHint.setPadding((int) dp(4), (int) dp(4), (int) dp(4), (int) dp(4));
