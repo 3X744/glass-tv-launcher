@@ -7,9 +7,5 @@
             <gradient android:angle="315" android:startColor="#FF526A82" android:endColor="#FF202A38" />
         </shape>
     </item>
-    <item android:width="64dp" android:height="64dp" android:gravity="center">
-        <vector android:width="64dp" android:height="64dp" android:viewportWidth="24" android:viewportHeight="24">
-            <path android:fillColor="#FFFFFFFF" android:pathData="M4,5h2v2H4zM8,5h12v2H8zM4,11h2v2H4zM8,11h12v2H8zM4,17h2v2H4zM8,17h12v2H8z" />
-        </vector>
-    </item>
+    <item android:width="64dp" android:height="64dp" android:gravity="center" android:drawable="@drawable/ic_hidden_list" />
 </layer-list>
