@@ -508,6 +508,7 @@ public class HomeActivity extends Activity {
         } else {
             AppInfo app = focusedApp();
             if (app != null && app.packageName.equals(AppLoader.FIRE_HOME)) openFireHome();
+            else if (app != null && app.packageName.equals(AppLoader.HIDDEN_APPS)) openHiddenAppsMenu();
             else if (app != null) launch(app.launchIntent);
         }
     }
@@ -542,7 +543,7 @@ public class HomeActivity extends Activity {
         items.add(new MenuItem("Paramètres Fire TV", this::openSettings));
         items.add(MenuItem.divider());
         items.add(new MenuItem("Affichage et tuiles  ›", this::openDisplayMenu));
-        items.add(new MenuItem("Économiseur d’écran  ›", minutes == 0 ? "Désactivé" : "Bassin après " + minutes + " min",
+        items.add(new MenuItem("Économiseur d’écran  ›", minutes == 0 ? "Désactivé" : "Après " + minutes + " min",
                 this::openScreensaverMenu));
         openMenu(pills[PILL_SETTINGS], items);
         if (selectedIndex >= 0 && selectedIndex < items.size()) {
@@ -605,6 +606,9 @@ public class HomeActivity extends Activity {
     private void setDisplayScale(int scale) {
         prefs.edit().putInt("displayScale", scale).apply();
         applyDisplayScale();
+        // Scaling uses view transforms rather than layout params; recalculate the focus frame now,
+        // so the white highlight follows the new size immediately without another remote-key press.
+        if (zone == TOP) moveHighlight();
         notice("✓  Taille des infos : " + scale + " %");
     }
 
@@ -674,6 +678,11 @@ public class HomeActivity extends Activity {
         if (app.packageName.equals(AppLoader.FIRE_HOME)) {
             items.add(new MenuItem("Opens Amazon's home  ·  Home returns here", null));
         }
+        if (app.packageName.equals(AppLoader.HIDDEN_APPS)) {
+            items.add(new MenuItem("Afficher ou restaurer les applications masquées", this::openHiddenAppsMenu));
+            openMenu(focusedTileView(), items);
+            return;
+        }
         items.add(MenuItem.divider());
         items.add(new MenuItem("Déplacer", this::startMove));
         // The Fire TV Home and clock screensaver tiles aren't real apps, so they have no info page
@@ -710,6 +719,43 @@ public class HomeActivity extends Activity {
         loadApps();
         notice("✓  " + app.label + " masquée");
     }
+    /** Opens a list of hidden apps; selecting one restores it to the launcher. */
+    private void openHiddenAppsMenu() {
+        List<String> hidden = AppLoader.readList(this, "hidden.txt");
+        List<MenuItem> items = new ArrayList<>();
+        items.add(MenuItem.caption("Applications masquées"));
+        items.add(MenuItem.divider());
+        PackageManager pm = getPackageManager();
+        int count = 0;
+        for (String pkg : hidden) {
+            if (AppLoader.isShortcut(pkg)) continue;
+            String label = pkg;
+            try {
+                label = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)));
+            } catch (PackageManager.NameNotFoundException ignored) { }
+            final String hiddenPackage = pkg;
+            items.add(new MenuItem("↩  " + label, "Réafficher dans les applications", () -> unhideApp(hiddenPackage)));
+            count++;
+        }
+        if (count == 0) items.add(new MenuItem("Aucune application masquée", null));
+        openMenu(focusedTileView(), items);
+    }
+
+    /** Removes a package from hidden.txt, making it visible again in the grid. */
+    private void unhideApp(String pkg) {
+        List<String> hidden = AppLoader.readList(this, "hidden.txt");
+        hidden.removeIf(pkg::equals);
+        try (FileWriter writer = new FileWriter(new File(getFilesDir(), "hidden.txt"))) {
+            for (String item : hidden) writer.write(item + "\\n");
+        } catch (Exception e) {
+            notice("Impossible de réafficher cette application");
+            return;
+        }
+        restoreGridPkg = AppLoader.HIDDEN_APPS;
+        loadApps();
+        notice("✓  Application réaffichée");
+    }
+
     /** Requests the system package installer to uninstall the selected application. */
     private void uninstallApp() {
         AppInfo app = focusedApp();
@@ -944,6 +990,9 @@ public class HomeActivity extends Activity {
         if (y + inputsMenu.getMeasuredHeight() > root.getHeight() - dp(16)) {
             y = a[1] - r[1] - inputsMenu.getMeasuredHeight() - dp(12);
         }
+        // Keep menus inside the screen, including when opened from a low grid row.
+        float maxY = Math.max(dp(16), root.getHeight() - inputsMenu.getMeasuredHeight() - dp(16));
+        y = Math.max(dp(16), Math.min(y, maxY));
         inputsMenu.setX(x);
         inputsMenu.setY(y - dp(8));
         inputsMenu.setAlpha(0f);
