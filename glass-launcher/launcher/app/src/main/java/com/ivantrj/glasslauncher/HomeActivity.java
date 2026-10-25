@@ -619,7 +619,9 @@ public class HomeActivity extends Activity {
      */
     private void applyDisplayScale() {
         if (header == null || pillRow == null || header.getWidth() == 0 || pillRow.getWidth() == 0) return;
-        float scale = Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f;
+        // The displayed percentage is intentionally 10% larger than its rendered scale:
+        // 100% now renders at 90%, leaving the whole top area less oversized.
+        float scale = Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f * 0.9f;
         header.setPivotX(0f);
         header.setPivotY(0f);
         header.setScaleX(scale);
@@ -1162,7 +1164,7 @@ public class HomeActivity extends Activity {
         moveHint.setTextSize(style == HINT_NOTICE ? 20 : 17);
         // Confirmation bars follow the selected top-information scale.
         float noticeScale = style == HINT_NOTICE
-                ? Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f : 1f;
+                ? Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f * 0.9f : 1f;
         moveHint.setScaleX(noticeScale);
         moveHint.setScaleY(noticeScale);
         moveHint.setPivotX(moveHint.getWidth() / 2f);
