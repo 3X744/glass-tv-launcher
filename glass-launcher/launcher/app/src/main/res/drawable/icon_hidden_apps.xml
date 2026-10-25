@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recovery tile icon: a list of apps on a dark glass card. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="96dp" android:height="96dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="20dp" />
+            <gradient android:angle="315" android:startColor="#FF526A82" android:endColor="#FF202A38" />
+        </shape>
+    </item>
+    <item android:width="64dp" android:height="64dp" android:gravity="center">
+        <vector android:width="64dp" android:height="64dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M4,5h2v2H4zM8,5h12v2H8zM4,11h2v2H4zM8,11h12v2H8zM4,17h2v2H4zM8,17h12v2H8z" />
+        </vector>
+    </item>
+</layer-list>
