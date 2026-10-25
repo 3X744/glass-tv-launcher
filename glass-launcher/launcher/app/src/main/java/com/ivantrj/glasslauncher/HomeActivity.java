@@ -675,7 +675,7 @@ public class HomeActivity extends Activity {
         }
         items.add(MenuItem.divider());
         items.add(new MenuItem("Déplacer", this::startMove));
-        // The Fire TV Home and Koi Pond tiles aren't real apps, so they have no info page
+        // The Fire TV Home and clock screensaver tiles aren't real apps, so they have no info page
         if (!AppLoader.isShortcut(app.packageName)) {
             items.add(new MenuItem("Infos de l'application", this::openAppInfo));
             items.add(new MenuItem("Forcer l'arrêt", this::openAppInfo));
