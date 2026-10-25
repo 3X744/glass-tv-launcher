@@ -84,6 +84,12 @@ final class AppLoader {
         if (!order.isEmpty()) {
             result.grid.sort((a, b) -> Integer.compare(rank(order, a), rank(order, b)));
         }
+        // If the dock has fewer saved favorites than the selected width, promote apps from
+        // the beginning of the visible grid (the tiles directly underneath the dock), rather
+        // than leaving empty slots or picking apps from the end of the list.
+        while (result.dock.size() < dockLimit && !result.grid.isEmpty()) {
+            result.dock.add(result.grid.remove(0));
+        }
         // Always keep the recovery tile at the end of the grid, regardless of alphabetical order.
         result.grid.add(hiddenAppsTile(context));
         return result;
