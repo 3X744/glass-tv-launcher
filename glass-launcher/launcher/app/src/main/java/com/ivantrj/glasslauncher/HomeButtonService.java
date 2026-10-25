@@ -132,13 +132,19 @@ public class HomeButtonService extends AccessibilityService {
                 && !visitingFireHome
                 && AMAZON_LAUNCHER.contentEquals(event.getPackageName())
                 && cls != null && cls.toString().contains("HomeActivity")) {
-            openGlass();
+            openGlass(true);
         }
     }
 
     private void openGlass() {
+        openGlass(false);
+    }
+
+    private void openGlass(boolean fromAmazonHome) {
         long now = SystemClock.uptimeMillis();
-        if (now - lastLaunch < 600) return; // one launch per Home press / launcher flash
+        // Keep the cooldown for repeated Home key events, but never let it block
+        // recovery when the Amazon launcher actually appears.
+        if (!fromAmazonHome && now - lastLaunch < 600) return;
         lastLaunch = now;
         Intent intent = new Intent(this, HomeActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
