@@ -167,6 +167,7 @@ public class HomeActivity extends Activity {
         connectivity = getSystemService(ConnectivityManager.class);
 
         root = findViewById(R.id.root);
+        root.post(this::applyDisplayScale);
         page = findViewById(R.id.page);
         band = findViewById(R.id.band);
         glow = findViewById(R.id.glow);
@@ -347,9 +348,11 @@ public class HomeActivity extends Activity {
         // Keep the dock on one line: five evenly sized cells across the existing 816dp row.
         int rowWidth = dockRow.getLayoutParams().width > 0
                 ? dockRow.getLayoutParams().width : Math.round(dp(816));
-        int cellWidth = rowWidth / 5;
-        int tileWidth = cellWidth - Math.round(dp(20));
+        int sizingColumns = Math.max(4, dockApps.size());
+        int cellWidth = rowWidth / sizingColumns;
+        int tileWidth = Math.min(Math.round(dp(180)), cellWidth - Math.round(dp(20)));
         int tileHeight = Math.round(tileWidth * 9f / 16f);
+        dockRow.setGravity(Gravity.CENTER_HORIZONTAL);
         for (AppInfo app : dockApps) {
             View cell = inflater.inflate(R.layout.item_tile, dockRow, false);
             cell.setLayoutParams(new LinearLayout.LayoutParams(cellWidth, Math.round(dp(144))));
@@ -512,17 +515,92 @@ public class HomeActivity extends Activity {
 
     /** onScreensaver: come back from the Screensaver submenu with its row selected. */
     private void openSettingsMenu(boolean onScreensaver) {
+        openSettingsMenuAt(onScreensaver ? 3 : -1);
+    }
+
+    private void openSettingsMenuAt(int selectedIndex) {
         int minutes = HomeButtonService.screensaverMinutes(this);
         List<MenuItem> items = new ArrayList<>();
-        items.add(new MenuItem("Fire TV settings", this::openSettings));
+        items.add(new MenuItem("Paramètres Fire TV", this::openSettings));
         items.add(MenuItem.divider());
-        items.add(new MenuItem("Screensaver  ›", minutes == 0 ? "Off" : "Koi pond after " + minutes + " min idle",
+        items.add(new MenuItem("Affichage et tuiles  ›", this::openDisplayMenu));
+        items.add(new MenuItem("Économiseur d’écran  ›", minutes == 0 ? "Désactivé" : "Bassin après " + minutes + " min",
                 this::openScreensaverMenu));
         openMenu(pills[PILL_SETTINGS], items);
-        if (onScreensaver) {
-            menuIdx = items.size() - 1;
+        if (selectedIndex >= 0 && selectedIndex < items.size()) {
+            menuIdx = selectedIndex;
             updateMenuSelection();
         }
+    }
+
+    private void openDisplayMenu() {
+        List<MenuItem> items = new ArrayList<>();
+        int tileLimit = prefs.getInt("dockTileLimit", 5);
+        int scale = prefs.getInt("displayScale", 100);
+        items.add(MenuItem.caption("Affichage et tuiles"));
+        items.add(MenuItem.divider());
+        items.add(new MenuItem("Nombre de tuiles  ›", tileLimit + " sur la ligne", this::openDockCountMenu));
+        items.add(new MenuItem("Échelle d’affichage  ›", scale + " %", this::openDisplayScaleMenu));
+        openMenu(pills[PILL_SETTINGS], items);
+        menuBack = () -> openSettingsMenuAt(2);
+    }
+
+    private void openDockCountMenu() {
+        int current = prefs.getInt("dockTileLimit", 5);
+        List<MenuItem> items = new ArrayList<>();
+        items.add(MenuItem.caption("Nombre de tuiles"));
+        items.add(MenuItem.divider());
+        int selected = -1;
+        for (int count = 1; count <= 5; count++) {
+            final int value = count;
+            if (count == current) selected = items.size();
+            items.add(MenuItem.option(count + (count == 1 ? " tuile" : " tuiles"), count == current,
+                    () -> setDockTileLimit(value)));
+        }
+        openMenu(pills[PILL_SETTINGS], items);
+        menuBack = this::openDisplayMenu;
+        if (selected >= 0) { menuIdx = selected; updateMenuSelection(); }
+    }
+
+    private void setDockTileLimit(int count) {
+        prefs.edit().putInt("dockTileLimit", count).apply();
+        loadApps();
+        notice("✓  " + count + (count == 1 ? " tuile sur la ligne" : " tuiles sur la ligne"));
+    }
+
+    private void openDisplayScaleMenu() {
+        int current = prefs.getInt("displayScale", 100);
+        int[] scales = {70, 75, 80, 85, 90, 95, 100};
+        List<MenuItem> items = new ArrayList<>();
+        items.add(MenuItem.caption("Échelle d’affichage"));
+        items.add(MenuItem.divider());
+        int selected = -1;
+        for (int scale : scales) {
+            if (scale == current) selected = items.size();
+            items.add(MenuItem.option(scale + " %", scale == current, () -> setDisplayScale(scale)));
+        }
+        openMenu(pills[PILL_SETTINGS], items);
+        menuBack = this::openDisplayMenu;
+        if (selected >= 0) { menuIdx = selected; updateMenuSelection(); }
+    }
+
+    private void setDisplayScale(int scale) {
+        prefs.edit().putInt("displayScale", scale).apply();
+        applyDisplayScale();
+        notice("✓  Échelle d’affichage : " + scale + " %");
+    }
+
+    /** Scales the complete launcher as one centered surface; navigation logic is unchanged. */
+    private void applyDisplayScale() {
+        if (root == null || root.getWidth() == 0 || root.getHeight() == 0) {
+            if (root != null) root.post(this::applyDisplayScale);
+            return;
+        }
+        float scale = Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f;
+        root.setPivotX(root.getWidth() / 2f);
+        root.setPivotY(root.getHeight() / 2f);
+        root.setScaleX(scale);
+        root.setScaleY(scale);
     }
 
     private static final int[] SCREENSAVER_MINUTES = {0, 2, 5, 10, 15, 30};
@@ -556,7 +634,7 @@ public class HomeActivity extends Activity {
 
     /** The "Fire TV Home" tile: Amazon's home until the next Home press. */
     private void openFireHome() {
-        if (!HomeButtonService.visitFireHome(this)) notice("Fire TV Home isn't available on this device");
+        if (!HomeButtonService.visitFireHome(this)) notice("Fire TV Home n’est pas disponible sur cet appareil");
     }
 
     /** Menu (☰): Now Playing pauses/resumes, Settings opens its menu, a tile gets Move / App info. */
@@ -1030,7 +1108,7 @@ public class HomeActivity extends Activity {
         } else if (zone == GRID && d < 0 && gridIdx < COLUMNS) {
             AppInfo app = gridApps.remove(gridIdx);
             int to = Math.min(gridIdx % COLUMNS, dockApps.size());
-            if (dockApps.size() >= 5) gridApps.add(gridIdx, dockApps.remove(to)); // full dock: swap places
+            if (dockApps.size() >= prefs.getInt("dockTileLimit", 5)) gridApps.add(gridIdx, dockApps.remove(to)); // full dock: swap places
             dockApps.add(to, app);
             dockIdx = to;
             zone = DOCK;
@@ -1162,14 +1240,14 @@ public class HomeActivity extends Activity {
             mediaArt.setAlpha(0.85f);
             mediaPaused.setVisibility(View.GONE);
             CharSequence app = musicAppLabel();
-            mediaText.setText(app != null ? "Open " + app + "  ›" : "Nothing playing");
+            mediaText.setText(app != null ? "Ouvrir " + app + "  ›" : "Aucune lecture en cours");
             mediaText.setAlpha(1f);
             updateHintBar();
             return;
         }
         PlaybackState now = media.getPlaybackState();
         boolean isPlaying = now != null && now.getState() == PlaybackState.STATE_PLAYING;
-        mediaText.setText(mediaLabel(isPlaying ? "" : "Paused" + SEPARATOR, title,
+        mediaText.setText(mediaLabel(isPlaying ? "" : "En pause" + SEPARATOR, title,
                 meta.getText(MediaMetadata.METADATA_KEY_ARTIST)));
 
         Bitmap art = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
@@ -1201,7 +1279,7 @@ public class HomeActivity extends Activity {
     private void toggleMedia() {
         PlaybackState state = media == null ? null : media.getPlaybackState();
         if (state == null || media.getMetadata() == null) {
-            notice("Nothing playing");
+            notice("Aucune lecture en cours");
         } else if (state.getState() == PlaybackState.STATE_PLAYING) {
             media.getTransportControls().pause();
         } else {
@@ -1239,8 +1317,8 @@ public class HomeActivity extends Activity {
 
     private void updateGreeting() {
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        String text = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon"
-                : hour < 22 ? "Good evening" : "Good night";
+        String text = hour < 5 ? "Bonne nuit" : hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi"
+                : hour < 22 ? "Bonsoir" : "Bonne nuit";
         greeting.setText(text);
     }
 
