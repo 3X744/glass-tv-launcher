@@ -1,11 +1,12 @@
 ﻿<resources>
     <!-- Dock apps, left to right. Missing or disabled packages are skipped.
-         Overridable without rebuilding: ./configure.sh dock pkg1 pkg2 pkg3 pkg4 -->
+         Overridable without rebuilding: ./configure.sh dock pkg1 pkg2 pkg3 pkg4 pkg5 -->
     <string-array name="dock_packages">
         <item>com.netflix.ninja</item>
         <item>com.amazon.firetv.youtube</item>
         <item>com.disney.disneyplus</item>
         <item>com.hulu.plus</item>
+        <item>com.amazon.amazonvideo.livingroom</item>
     </string-array>
 
     <!-- Never shown in the grid: Amazon system screens that register phone-style launcher

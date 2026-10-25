@@ -27,12 +27,14 @@ final class AppLoader {
 
     /** Pseudo package of the "Fire TV Home" tile, which opens Amazon's home screen (see HomeButtonService). */
     static final String FIRE_HOME = "glass.firetv-home";
-    /** Pseudo package of the "Koi Pond" tile, which starts the screensaver on demand. */
+    /** Pseudo package for the clock screensaver tile. */
     static final String KOI_POND = "glass.koi-pond";
+    /** Recovery tile for apps hidden from the launcher. */
+    static final String HIDDEN_APPS = "glass.hidden-apps";
 
     /** Tiles that are Glass's own shortcuts rather than installed apps (no App info page). */
     static boolean isShortcut(String pkg) {
-        return FIRE_HOME.equals(pkg) || KOI_POND.equals(pkg);
+        return FIRE_HOME.equals(pkg) || KOI_POND.equals(pkg) || HIDDEN_APPS.equals(pkg);
     }
 
     static final class Result {
@@ -64,9 +66,21 @@ final class AppLoader {
         if (dock.isEmpty() && !new File(context.getFilesDir(), "dock.txt").isFile()) {
             dock = Arrays.asList(context.getResources().getStringArray(R.array.dock_packages));
         }
+        int dockLimit = context.getSharedPreferences("focus", Context.MODE_PRIVATE)
+                .getInt("dockTileLimit", 5);
+        dockLimit = Math.max(1, Math.min(5, dockLimit));
+        List<AppInfo> overflowDock = new ArrayList<>();
         for (String pkg : dock) {
-            AppInfo app = apps.remove(pkg);
-            if (app != null && result.dock.size() < 4) result.dock.add(app);
+            AppInfo app = apps.get(pkg);
+            if (app == null) continue;
+            apps.remove(pkg);
+            if (result.dock.size() < dockLimit) {
+                result.dock.add(app);
+            } else {
+                // When the dock shrinks, preserve its former left-to-right order at the
+                // very top of the grid, directly below the remaining favorites.
+                overflowDock.add(app);
+            }
         }
         result.grid.addAll(apps.values());
         Collator collator = Collator.getInstance();
@@ -77,6 +91,20 @@ final class AppLoader {
         if (!order.isEmpty()) {
             result.grid.sort((a, b) -> Integer.compare(rank(order, a), rank(order, b)));
         }
+        // Prioritize apps displaced by a smaller dock over the previous grid ordering.
+        // This also means increasing the dock size promotes these exact tiles back into favorites.
+        if (!overflowDock.isEmpty()) {
+            result.grid.removeAll(overflowDock);
+            result.grid.addAll(0, overflowDock);
+        }
+        // If the dock has fewer saved favorites than the selected width, promote apps from
+        // the beginning of the visible grid (the tiles directly underneath the dock), rather
+        // than leaving empty slots or picking apps from the end of the list.
+        while (result.dock.size() < dockLimit && !result.grid.isEmpty()) {
+            result.dock.add(result.grid.remove(0));
+        }
+        // Always keep the recovery tile at the end of the grid, regardless of alphabetical order.
+        result.grid.add(hiddenAppsTile(context));
         return result;
     }
 
@@ -128,10 +156,15 @@ final class AppLoader {
         return new AppInfo(FIRE_HOME, "Fire TV Home", null, icon, sampleColor(icon), new Intent());
     }
 
+    private static AppInfo hiddenAppsTile(Context context) {
+        Drawable icon = context.getDrawable(R.drawable.icon_hidden_apps);
+        return new AppInfo(HIDDEN_APPS, "Applications masquées", null, icon, sampleColor(icon), new Intent());
+    }
+
     private static AppInfo koiPondTile(Context context) {
         Drawable icon = context.getDrawable(R.drawable.icon_koi_pond);
         Intent pond = new Intent(context, ScreensaverActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return new AppInfo(KOI_POND, "Koi Pond", null, icon, sampleColor(icon), pond);
+        return new AppInfo(KOI_POND, "Horloge", null, icon, sampleColor(icon), pond);
     }
 
     private static AppInfo toApp(PackageManager pm, ActivityInfo ai) {

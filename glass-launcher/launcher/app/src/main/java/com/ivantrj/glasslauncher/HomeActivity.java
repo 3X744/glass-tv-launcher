@@ -54,6 +54,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -75,10 +76,11 @@ public class HomeActivity extends Activity {
     private static final int COLUMNS = 4;
     private static final int PILL_MEDIA = 0, PILL_WIFI = 1, PILL_SETTINGS = 2;
     /** Opened by the Now Playing pill when nothing is playing. */
-    private static final String MUSIC_APP = "com.spotify.tv.android";
+    private static final String MUSIC_APP = "com.amazon.music.tv";
+    private static final String MUSIC_APP_FIRE_TV = "com.amazon.bueller.music";
     private static final int NEUTRAL_GLOW = 0xFF8E8E9E;
 
-    private View root, page, band, glow, pillRow;
+    private View root, page, band, glow, pillRow, header;
     private View[] pills;
     private GlassHighlight highlight;
     private TextView greeting, dockTitle, wifiName, mediaText, moveHint;
@@ -168,6 +170,8 @@ public class HomeActivity extends Activity {
 
         root = findViewById(R.id.root);
         page = findViewById(R.id.page);
+        page.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> applyDisplayScale());
+        header = findViewById(R.id.header);
         band = findViewById(R.id.band);
         glow = findViewById(R.id.glow);
         highlight = findViewById(R.id.highlight);
@@ -342,8 +346,42 @@ public class HomeActivity extends Activity {
     private void bindDock() {
         dockRow.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(this);
+        if (dockApps.isEmpty()) return;
+
+        // Keep the normal 180dp tiles for up to four apps. With five apps, share the available
+        // row evenly and shrink both tiles and icons as needed so the fifth tile remains visible.
+        int count = dockApps.size();
+        int preferredWidth = count * Math.round(dp(204));
+        int availableWidth = Math.max(Math.round(dp(400)), page.getWidth() - Math.round(dp(144)));
+        int rowWidth = Math.min(Math.min(Math.round(dp(816)), availableWidth), preferredWidth);
+        FrameLayout.LayoutParams rowParams = (FrameLayout.LayoutParams) dockRow.getLayoutParams();
+        rowParams.width = rowWidth;
+        dockRow.setLayoutParams(rowParams);
+        int cellWidth = rowWidth / count;
+        int tileWidth = Math.min(Math.round(dp(180)), cellWidth - Math.round(dp(24)));
+        tileWidth = Math.max(Math.round(dp(80)), tileWidth);
+        int tileHeight = Math.round(tileWidth * 9f / 16f);
+
+        // Center the band on the actual tile area, even when five tiles shrink.
+        FrameLayout.LayoutParams bandParams = (FrameLayout.LayoutParams) band.getLayoutParams();
+        int bandHeight = tileHeight + Math.round(dp(40));
+        bandParams.width = rowWidth + Math.round(dp(24));
+        bandParams.height = bandHeight;
+        bandParams.topMargin = dockRow.getTop() + Math.round(dp(10))
+                + tileHeight / 2 - bandHeight / 2;
+        band.setLayoutParams(bandParams);
+        dockRow.setGravity(Gravity.CENTER_HORIZONTAL);
         for (AppInfo app : dockApps) {
             View cell = inflater.inflate(R.layout.item_tile, dockRow, false);
+            cell.setLayoutParams(new LinearLayout.LayoutParams(cellWidth, Math.round(dp(144))));
+            View tile = cell.findViewById(R.id.tile);
+            FrameLayout.LayoutParams tileParams = new FrameLayout.LayoutParams(
+                    tileWidth, tileHeight, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+            tileParams.topMargin = Math.round(dp(10));
+            tile.setLayoutParams(tileParams);
+            ImageView icon = cell.findViewById(R.id.icon);
+            int iconSize = Math.min(Math.round(dp(54)), Math.round(tileWidth * 0.36f));
+            icon.setLayoutParams(new FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER));
             Tiles.bind(cell, app);
             // The big title above the dock already names the focused app; a second label under it competed
             cell.findViewById(R.id.label).setVisibility(View.GONE);
@@ -470,6 +508,7 @@ public class HomeActivity extends Activity {
         } else {
             AppInfo app = focusedApp();
             if (app != null && app.packageName.equals(AppLoader.FIRE_HOME)) openFireHome();
+            else if (app != null && app.packageName.equals(AppLoader.HIDDEN_APPS)) openHiddenAppsMenu();
             else if (app != null) launch(app.launchIntent);
         }
     }
@@ -495,17 +534,100 @@ public class HomeActivity extends Activity {
 
     /** onScreensaver: come back from the Screensaver submenu with its row selected. */
     private void openSettingsMenu(boolean onScreensaver) {
+        openSettingsMenuAt(onScreensaver ? 3 : -1);
+    }
+
+    private void openSettingsMenuAt(int selectedIndex) {
         int minutes = HomeButtonService.screensaverMinutes(this);
         List<MenuItem> items = new ArrayList<>();
-        items.add(new MenuItem("Fire TV settings", this::openSettings));
+        items.add(new MenuItem("Paramètres Fire TV", this::openSettings));
         items.add(MenuItem.divider());
-        items.add(new MenuItem("Screensaver  ›", minutes == 0 ? "Off" : "Koi pond after " + minutes + " min idle",
+        items.add(new MenuItem("Affichage et tuiles  ›", this::openDisplayMenu));
+        items.add(new MenuItem("Économiseur d’écran  ›", minutes == 0 ? "Désactivé" : "Après " + minutes + " min",
                 this::openScreensaverMenu));
         openMenu(pills[PILL_SETTINGS], items);
-        if (onScreensaver) {
-            menuIdx = items.size() - 1;
+        if (selectedIndex >= 0 && selectedIndex < items.size()) {
+            menuIdx = selectedIndex;
             updateMenuSelection();
         }
+    }
+
+    private void openDisplayMenu() {
+        List<MenuItem> items = new ArrayList<>();
+        int tileLimit = prefs.getInt("dockTileLimit", 5);
+        int scale = prefs.getInt("displayScale", 100);
+        items.add(MenuItem.caption("Affichage et tuiles"));
+        items.add(MenuItem.divider());
+        items.add(new MenuItem("Nombre de tuiles  ›", tileLimit + " sur la ligne", this::openDockCountMenu));
+        items.add(new MenuItem("Taille des infos en haut  ›", scale + " %", this::openDisplayScaleMenu));
+        openMenu(pills[PILL_SETTINGS], items);
+        menuBack = () -> openSettingsMenuAt(2);
+    }
+
+    private void openDockCountMenu() {
+        int current = prefs.getInt("dockTileLimit", 5);
+        List<MenuItem> items = new ArrayList<>();
+        items.add(MenuItem.caption("Nombre de tuiles"));
+        items.add(MenuItem.divider());
+        int selected = -1;
+        for (int count = 1; count <= 5; count++) {
+            final int value = count;
+            if (count == current) selected = items.size();
+            items.add(MenuItem.option(count + (count == 1 ? " tuile" : " tuiles"), count == current,
+                    () -> setDockTileLimit(value)));
+        }
+        openMenu(pills[PILL_SETTINGS], items);
+        menuBack = this::openDisplayMenu;
+        if (selected >= 0) { menuIdx = selected; updateMenuSelection(); }
+    }
+
+    private void setDockTileLimit(int count) {
+        prefs.edit().putInt("dockTileLimit", count).apply();
+        loadApps();
+        notice("✓  " + count + (count == 1 ? " tuile sur la ligne" : " tuiles sur la ligne"));
+    }
+
+    private void openDisplayScaleMenu() {
+        int current = prefs.getInt("displayScale", 100);
+        int[] scales = {70, 75, 80, 85, 90, 95, 100};
+        List<MenuItem> items = new ArrayList<>();
+        items.add(MenuItem.caption("Taille des infos en haut"));
+        items.add(MenuItem.divider());
+        int selected = -1;
+        for (int scale : scales) {
+            if (scale == current) selected = items.size();
+            items.add(MenuItem.option(scale + " %", scale == current, () -> setDisplayScale(scale)));
+        }
+        openMenu(pills[PILL_SETTINGS], items);
+        menuBack = this::openDisplayMenu;
+        if (selected >= 0) { menuIdx = selected; updateMenuSelection(); }
+    }
+
+    private void setDisplayScale(int scale) {
+        prefs.edit().putInt("displayScale", scale).apply();
+        applyDisplayScale();
+        // Scaling uses view transforms rather than layout params; recalculate the focus frame now,
+        // so the white highlight follows the new size immediately without another remote-key press.
+        if (zone == TOP) moveHighlight();
+        notice("✓  Taille des infos : " + scale + " %");
+    }
+
+    /**
+     * This setting changes only the information at the top of the screen.
+     * Dock and grid tiles retain their designed size; the header shrinks from its top-left
+     * corner and the status pills shrink from their top-right corner.
+     */
+    private void applyDisplayScale() {
+        if (header == null || pillRow == null || header.getWidth() == 0 || pillRow.getWidth() == 0) return;
+        float scale = Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f;
+        header.setPivotX(0f);
+        header.setPivotY(0f);
+        header.setScaleX(scale);
+        header.setScaleY(scale);
+        pillRow.setPivotX(pillRow.getWidth());
+        pillRow.setPivotY(0f);
+        pillRow.setScaleX(scale);
+        pillRow.setScaleY(scale);
     }
 
     private static final int[] SCREENSAVER_MINUTES = {0, 2, 5, 10, 15, 30};
@@ -514,16 +636,16 @@ public class HomeActivity extends Activity {
     private void openScreensaverMenu() {
         int current = HomeButtonService.screensaverMinutes(this);
         List<MenuItem> items = new ArrayList<>();
-        items.add(MenuItem.caption("Screensaver"));
+        items.add(MenuItem.caption("Écran de veille"));
         items.add(MenuItem.divider());
         int selected = -1;
         for (int minutes : SCREENSAVER_MINUTES) {
-            String label = minutes == 0 ? "Off" : "After " + minutes + " min";
+            String label = minutes == 0 ? "Désactivé" : "Après " + minutes + " min";
             if (minutes == current) selected = items.size();
             items.add(MenuItem.option(label, minutes == current, () -> setScreensaver(minutes)));
         }
         items.add(MenuItem.divider());
-        items.add(new MenuItem("▶  Preview now", () -> ScreensaverActivity.start(this)));
+        items.add(new MenuItem("▶  Aperçu maintenant", () -> ScreensaverActivity.start(this)));
         openMenu(pills[PILL_SETTINGS], items);
         menuBack = () -> openSettingsMenu(true); // Back / Left step up to the Settings menu
         if (selected >= 0) { // start on the current choice
@@ -534,12 +656,12 @@ public class HomeActivity extends Activity {
 
     private void setScreensaver(int minutes) {
         HomeButtonService.setScreensaverMinutes(this, minutes);
-        notice(minutes == 0 ? "✓  Screensaver off" : "✓  Koi pond after " + minutes + " min idle");
+        notice(minutes == 0 ? "✓  Écran de veille désactivé" : "✓  Écran de veille après " + minutes + " min");
     }
 
     /** The "Fire TV Home" tile: Amazon's home until the next Home press. */
     private void openFireHome() {
-        if (!HomeButtonService.visitFireHome(this)) notice("Fire TV Home isn't available on this device");
+        if (!HomeButtonService.visitFireHome(this)) notice("Fire TV Home n’est pas disponible sur cet appareil");
     }
 
     /** Menu (☰): Now Playing pauses/resumes, Settings opens its menu, a tile gets Move / App info. */
@@ -556,19 +678,95 @@ public class HomeActivity extends Activity {
         if (app.packageName.equals(AppLoader.FIRE_HOME)) {
             items.add(new MenuItem("Opens Amazon's home  ·  Home returns here", null));
         }
+        if (app.packageName.equals(AppLoader.HIDDEN_APPS)) {
+            items.add(new MenuItem("Afficher ou restaurer les applications masquées", this::openHiddenAppsMenu));
+            openMenu(focusedTileView(), items);
+            return;
+        }
         items.add(MenuItem.divider());
-        items.add(new MenuItem("Move", this::startMove));
-        // The Fire TV Home and Koi Pond tiles aren't real apps, so they have no info page
-        if (!AppLoader.isShortcut(app.packageName)) items.add(new MenuItem("App info", this::openAppInfo));
+        items.add(new MenuItem("Déplacer", this::startMove));
+        // The Fire TV Home and clock screensaver tiles aren't real apps, so they have no info page
+        if (!AppLoader.isShortcut(app.packageName)) {
+            items.add(new MenuItem("Infos de l'application", this::openAppInfo));
+            items.add(new MenuItem("Forcer l'arrêt", this::openAppInfo));
+            items.add(new MenuItem("Masquer l’application", this::hideApp));
+            items.add(new MenuItem("Désinstaller", this::uninstallApp));
+        }
         openMenu(focusedTileView(), items);
     }
 
-    /** That app's system info page (force stop, clear cache...). */
+    /** Opens Android/Fire OS app details, where system actions such as Force stop are available. */
     private void openAppInfo() {
         AppInfo app = focusedApp();
-        if (app == null) return;
+        if (app == null || AppLoader.isShortcut(app.packageName)) return;
         launch(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", app.packageName, null)));
+    }
+
+    /** Hides the selected app from the launcher without uninstalling it. */
+    private void hideApp() {
+        AppInfo app = focusedApp();
+        if (app == null || AppLoader.isShortcut(app.packageName)) return;
+        List<String> hidden = AppLoader.readList(this, "hidden.txt");
+        if (!hidden.contains(app.packageName)) hidden.add(app.packageName);
+        try (FileWriter writer = new FileWriter(new File(getFilesDir(), "hidden.txt"))) {
+            for (String pkg : hidden) writer.write(pkg + "\n");
+        } catch (Exception e) {
+            notice("Impossible de masquer cette application");
+            return;
+        }
+        restoreGridPkg = null;
+        loadApps();
+        notice("✓  " + app.label + " masquée");
+    }
+    /** Opens a list of hidden apps; selecting one restores it to the launcher. */
+    private void openHiddenAppsMenu() {
+        List<String> hidden = AppLoader.readList(this, "hidden.txt");
+        List<MenuItem> items = new ArrayList<>();
+        items.add(MenuItem.caption("Applications masquées"));
+        items.add(MenuItem.divider());
+        PackageManager pm = getPackageManager();
+        int count = 0;
+        for (String pkg : hidden) {
+            if (AppLoader.isShortcut(pkg)) continue;
+            String label = pkg;
+            try {
+                label = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)));
+            } catch (PackageManager.NameNotFoundException ignored) { }
+            final String hiddenPackage = pkg;
+            items.add(new MenuItem("↩  " + label, "Réafficher dans les applications", () -> unhideApp(hiddenPackage)));
+            count++;
+        }
+        if (count == 0) items.add(new MenuItem("Aucune application masquée", null));
+        openMenu(focusedTileView(), items);
+    }
+
+    /** Removes a package from hidden.txt, making it visible again in the grid. */
+    private void unhideApp(String pkg) {
+        List<String> hidden = AppLoader.readList(this, "hidden.txt");
+        hidden.removeIf(pkg::equals);
+        try (FileWriter writer = new FileWriter(new File(getFilesDir(), "hidden.txt"))) {
+            for (String item : hidden) writer.write(item + "\n");
+        } catch (Exception e) {
+            notice("Impossible de réafficher cette application");
+            return;
+        }
+        restoreGridPkg = AppLoader.HIDDEN_APPS;
+        loadApps();
+        notice("✓  Application réaffichée");
+    }
+
+    /** Requests the system package installer to uninstall the selected application. */
+    private void uninstallApp() {
+        AppInfo app = focusedApp();
+        if (app == null || AppLoader.isShortcut(app.packageName)) return;
+        Intent intent = new Intent(Intent.ACTION_DELETE,
+                Uri.fromParts("package", app.packageName, null));
+        try {
+            launch(intent);
+        } catch (ActivityNotFoundException e) {
+            openAppInfo();
+        }
     }
 
     private AppInfo focusedApp() {
@@ -633,11 +831,20 @@ public class HomeActivity extends Activity {
         float l, t, w, h;
         if (zone == TOP) {
             View p = pills[topIdx];
-            float s = 1f, pad = dp(4);
+            // The pill row is scaled from its top-right corner. Mirror that transform when
+            // positioning the highlight, otherwise the white focus glass stays at 100%.
+            float s = pillRow.getScaleX();
+            float pad = dp(4) * s;
+            float pivotX = pillRow.getPivotX();
+            float pivotY = pillRow.getPivotY();
+            float centerX = pillRow.getLeft() + pivotX
+                    + (p.getLeft() + p.getWidth() / 2f - pivotX) * s;
+            float centerY = pillRow.getTop() + pivotY
+                    + (p.getTop() + p.getHeight() / 2f - pivotY) * s;
             w = p.getWidth() * s + 2 * pad;
             h = p.getHeight() * s + 2 * pad;
-            l = pillRow.getLeft() + p.getLeft() + p.getWidth() / 2f - w / 2f;
-            t = pillRow.getTop() + p.getTop() + p.getHeight() / 2f - h / 2f;
+            l = centerX - w / 2f;
+            t = centerY - h / 2f;
             highlight.moveTo(l, t, w, h, h / 2f);
             return;
         }
@@ -646,6 +853,8 @@ public class HomeActivity extends Activity {
             if (dockIdx >= dockRow.getChildCount()) return;
             View cell = dockRow.getChildAt(dockIdx);
             View tile = cell.findViewById(R.id.tile);
+            tileW = tile.getWidth();
+            tileH = tile.getHeight();
             l = dockRow.getLeft() + cell.getLeft() + tile.getLeft();
             t = dockRow.getTop() + cell.getTop() + tile.getTop();
         } else {
@@ -781,6 +990,9 @@ public class HomeActivity extends Activity {
         if (y + inputsMenu.getMeasuredHeight() > root.getHeight() - dp(16)) {
             y = a[1] - r[1] - inputsMenu.getMeasuredHeight() - dp(12);
         }
+        // Keep menus inside the screen, including when opened from a low grid row.
+        float maxY = Math.max(dp(16), root.getHeight() - inputsMenu.getMeasuredHeight() - dp(16));
+        y = Math.max(dp(16), Math.min(y, maxY));
         inputsMenu.setX(x);
         inputsMenu.setY(y - dp(8));
         inputsMenu.setAlpha(0f);
@@ -948,6 +1160,13 @@ public class HomeActivity extends Activity {
         moveHint.setText(text);
         moveHint.setTypeface(Fonts.outfit(this, style == HINT_NOTICE ? 500 : 400));
         moveHint.setTextSize(style == HINT_NOTICE ? 20 : 17);
+        // Confirmation bars follow the selected top-information scale.
+        float noticeScale = style == HINT_NOTICE
+                ? Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f : 1f;
+        moveHint.setScaleX(noticeScale);
+        moveHint.setScaleY(noticeScale);
+        moveHint.setPivotX(moveHint.getWidth() / 2f);
+        moveHint.setPivotY(0f);
         if (style == HINT_CAPTION) {
             moveHint.setBackground(null);
             moveHint.setPadding((int) dp(4), (int) dp(4), (int) dp(4), (int) dp(4));
@@ -999,7 +1218,7 @@ public class HomeActivity extends Activity {
         showOrder();
     }
 
-    /** Down out of the dock drops into the grid; Up from the first grid row joins the dock (max 4). */
+    /** Down out of the dock drops into the grid; Up from the first grid row joins the dock (max 5). */
     private void moveVertically(int d) {
         if (zone == DOCK && d > 0) {
             AppInfo app = dockApps.remove(dockIdx);
@@ -1011,7 +1230,7 @@ public class HomeActivity extends Activity {
         } else if (zone == GRID && d < 0 && gridIdx < COLUMNS) {
             AppInfo app = gridApps.remove(gridIdx);
             int to = Math.min(gridIdx % COLUMNS, dockApps.size());
-            if (dockApps.size() >= 4) gridApps.add(gridIdx, dockApps.remove(to)); // full dock: swap places
+            if (dockApps.size() >= prefs.getInt("dockTileLimit", 5)) gridApps.add(gridIdx, dockApps.remove(to)); // full dock: swap places
             dockApps.add(to, app);
             dockIdx = to;
             zone = DOCK;
@@ -1143,14 +1362,14 @@ public class HomeActivity extends Activity {
             mediaArt.setAlpha(0.85f);
             mediaPaused.setVisibility(View.GONE);
             CharSequence app = musicAppLabel();
-            mediaText.setText(app != null ? "Open " + app + "  ›" : "Nothing playing");
+            mediaText.setText(app != null ? "Ouvrir " + app + "  ›" : "Aucune lecture en cours");
             mediaText.setAlpha(1f);
             updateHintBar();
             return;
         }
         PlaybackState now = media.getPlaybackState();
         boolean isPlaying = now != null && now.getState() == PlaybackState.STATE_PLAYING;
-        mediaText.setText(mediaLabel(isPlaying ? "" : "Paused" + SEPARATOR, title,
+        mediaText.setText(mediaLabel(isPlaying ? "" : "En pause" + SEPARATOR, title,
                 meta.getText(MediaMetadata.METADATA_KEY_ARTIST)));
 
         Bitmap art = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
@@ -1168,11 +1387,23 @@ public class HomeActivity extends Activity {
         updateHintBar();
     }
 
-    /** The label of the app the pill opens when nothing is playing, or null if it isn't installed. */
+    /** Prefer the Android TV Amazon Music package, with Fire TV's native package as fallback. */
+    private String amazonMusicPackage() {
+        PackageManager pm = getPackageManager();
+        for (String candidate : new String[] {MUSIC_APP, MUSIC_APP_FIRE_TV}) {
+            try {
+                pm.getApplicationInfo(candidate, 0);
+                return candidate;
+            } catch (PackageManager.NameNotFoundException ignored) { }
+        }
+        return MUSIC_APP;
+    }
+
+    /** The label of Amazon Music, or null if neither package is installed. */
     private CharSequence musicAppLabel() {
         try {
             PackageManager pm = getPackageManager();
-            return pm.getApplicationLabel(pm.getApplicationInfo(MUSIC_APP, 0));
+            return pm.getApplicationLabel(pm.getApplicationInfo(amazonMusicPackage(), 0));
         } catch (PackageManager.NameNotFoundException e) {
             return null;
         }
@@ -1182,7 +1413,7 @@ public class HomeActivity extends Activity {
     private void toggleMedia() {
         PlaybackState state = media == null ? null : media.getPlaybackState();
         if (state == null || media.getMetadata() == null) {
-            notice("Nothing playing");
+            notice("Aucune lecture en cours");
         } else if (state.getState() == PlaybackState.STATE_PLAYING) {
             media.getTransportControls().pause();
         } else {
@@ -1191,13 +1422,13 @@ public class HomeActivity extends Activity {
     }
 
     private void openMediaApp() {
-        String pkg = media != null ? media.getPackageName() : MUSIC_APP;
+        String pkg = media != null ? media.getPackageName() : amazonMusicPackage();
         PackageManager pm = getPackageManager();
         Intent open = pm.getLeanbackLaunchIntentForPackage(pkg);
         if (open == null) open = pm.getLaunchIntentForPackage(pkg);
-        if (open == null && pkg.equals(MUSIC_APP)) {
-            // Spotify isn't installed: open its store page (Amazon Appstore on Fire TV, Play elsewhere)
-            for (String store : new String[] {"amzn://apps/android?p=" + MUSIC_APP, "market://details?id=" + MUSIC_APP}) {
+        if (open == null && (pkg.equals(MUSIC_APP) || pkg.equals(MUSIC_APP_FIRE_TV))) {
+            // Amazon Music isn't installed: open its store page.
+            for (String store : new String[] {"amzn://apps/android?p=" + pkg, "market://details?id=" + pkg}) {
                 Intent page = new Intent(Intent.ACTION_VIEW, Uri.parse(store));
                 if (page.resolveActivity(pm) != null) {
                     launch(page);
@@ -1206,7 +1437,9 @@ public class HomeActivity extends Activity {
             }
         }
         if (open == null) {
-            notice(pkg.equals(MUSIC_APP) ? "Spotify isn't installed and no app store was found" : "Can't open that app");
+            notice((pkg.equals(MUSIC_APP) || pkg.equals(MUSIC_APP_FIRE_TV))
+                    ? "Amazon Music n'est pas installé et aucune boutique n'est disponible"
+                    : "Impossible d'ouvrir cette application");
             return;
         }
         launch(open);
@@ -1220,8 +1453,8 @@ public class HomeActivity extends Activity {
 
     private void updateGreeting() {
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        String text = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon"
-                : hour < 22 ? "Good evening" : "Good night";
+        String text = hour < 5 ? "Bonne nuit" : hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi"
+                : hour < 22 ? "Bonsoir" : "Bonne nuit";
         greeting.setText(text);
     }
 
