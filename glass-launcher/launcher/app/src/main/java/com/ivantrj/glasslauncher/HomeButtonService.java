@@ -1,6 +1,7 @@
 package com.ivantrj.glasslauncher;
 
 import android.accessibilityservice.AccessibilityService;
+import android.app.ActivityOptions;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
@@ -139,8 +140,11 @@ public class HomeButtonService extends AccessibilityService {
         long now = SystemClock.uptimeMillis();
         if (now - lastLaunch < 600) return; // one launch per Home press / launcher flash
         lastLaunch = now;
-        startActivity(new Intent(this, HomeActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+        Intent intent = new Intent(this, HomeActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        // Suppress the default Fire OS/Android activity transition to avoid the brief black fade
+        // when returning to Glass with the remote's Home button.
+        startActivity(intent, ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle());
     }
 
     @Override public void onInterrupt() {}
