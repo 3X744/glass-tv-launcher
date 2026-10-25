@@ -75,7 +75,8 @@ public class HomeActivity extends Activity {
     private static final int COLUMNS = 4;
     private static final int PILL_MEDIA = 0, PILL_WIFI = 1, PILL_SETTINGS = 2;
     /** Opened by the Now Playing pill when nothing is playing. */
-    private static final String MUSIC_APP = "com.spotify.tv.android";
+    private static final String MUSIC_APP = "com.amazon.music.tv";
+    private static final String MUSIC_APP_FIRE_TV = "com.amazon.bueller.music";
     private static final int NEUTRAL_GLOW = 0xFF8E8E9E;
 
     private View root, page, band, glow, pillRow, header;
@@ -1319,11 +1320,23 @@ public class HomeActivity extends Activity {
         updateHintBar();
     }
 
-    /** The label of the app the pill opens when nothing is playing, or null if it isn't installed. */
+    /** Prefer the Android TV Amazon Music package, with Fire TV's native package as fallback. */
+    private String amazonMusicPackage() {
+        PackageManager pm = getPackageManager();
+        for (String candidate : new String[] {MUSIC_APP, MUSIC_APP_FIRE_TV}) {
+            try {
+                pm.getApplicationInfo(candidate, 0);
+                return candidate;
+            } catch (PackageManager.NameNotFoundException ignored) { }
+        }
+        return MUSIC_APP;
+    }
+
+    /** The label of Amazon Music, or null if neither package is installed. */
     private CharSequence musicAppLabel() {
         try {
             PackageManager pm = getPackageManager();
-            return pm.getApplicationLabel(pm.getApplicationInfo(MUSIC_APP, 0));
+            return pm.getApplicationLabel(pm.getApplicationInfo(amazonMusicPackage(), 0));
         } catch (PackageManager.NameNotFoundException e) {
             return null;
         }
@@ -1342,13 +1355,13 @@ public class HomeActivity extends Activity {
     }
 
     private void openMediaApp() {
-        String pkg = media != null ? media.getPackageName() : MUSIC_APP;
+        String pkg = media != null ? media.getPackageName() : amazonMusicPackage();
         PackageManager pm = getPackageManager();
         Intent open = pm.getLeanbackLaunchIntentForPackage(pkg);
         if (open == null) open = pm.getLaunchIntentForPackage(pkg);
-        if (open == null && pkg.equals(MUSIC_APP)) {
-            // Spotify isn't installed: open its store page (Amazon Appstore on Fire TV, Play elsewhere)
-            for (String store : new String[] {"amzn://apps/android?p=" + MUSIC_APP, "market://details?id=" + MUSIC_APP}) {
+        if (open == null && (pkg.equals(MUSIC_APP) || pkg.equals(MUSIC_APP_FIRE_TV))) {
+            // Amazon Music isn't installed: open its store page.
+            for (String store : new String[] {"amzn://apps/android?p=" + pkg, "market://details?id=" + pkg}) {
                 Intent page = new Intent(Intent.ACTION_VIEW, Uri.parse(store));
                 if (page.resolveActivity(pm) != null) {
                     launch(page);
@@ -1357,7 +1370,9 @@ public class HomeActivity extends Activity {
             }
         }
         if (open == null) {
-            notice(pkg.equals(MUSIC_APP) ? "Spotify isn't installed and no app store was found" : "Can't open that app");
+            notice((pkg.equals(MUSIC_APP) || pkg.equals(MUSIC_APP_FIRE_TV))
+                    ? "Amazon Music n'est pas installé et aucune boutique n'est disponible"
+                    : "Impossible d'ouvrir cette application");
             return;
         }
         launch(open);
