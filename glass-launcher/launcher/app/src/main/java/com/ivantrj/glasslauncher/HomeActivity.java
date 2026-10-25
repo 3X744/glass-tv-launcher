@@ -342,8 +342,25 @@ public class HomeActivity extends Activity {
     private void bindDock() {
         dockRow.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(this);
+        if (dockApps.isEmpty()) return;
+
+        // Keep the dock on one line: five evenly sized cells across the existing 816dp row.
+        int rowWidth = dockRow.getLayoutParams().width > 0
+                ? dockRow.getLayoutParams().width : Math.round(dp(816));
+        int cellWidth = rowWidth / 5;
+        int tileWidth = cellWidth - Math.round(dp(20));
+        int tileHeight = Math.round(tileWidth * 9f / 16f);
         for (AppInfo app : dockApps) {
             View cell = inflater.inflate(R.layout.item_tile, dockRow, false);
+            cell.setLayoutParams(new LinearLayout.LayoutParams(cellWidth, Math.round(dp(144))));
+            View tile = cell.findViewById(R.id.tile);
+            FrameLayout.LayoutParams tileParams = new FrameLayout.LayoutParams(
+                    tileWidth, tileHeight, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+            tileParams.topMargin = Math.round(dp(10));
+            tile.setLayoutParams(tileParams);
+            ImageView icon = cell.findViewById(R.id.icon);
+            int iconSize = Math.round(dp(54));
+            icon.setLayoutParams(new FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER));
             Tiles.bind(cell, app);
             // The big title above the dock already names the focused app; a second label under it competed
             cell.findViewById(R.id.label).setVisibility(View.GONE);
@@ -646,6 +663,8 @@ public class HomeActivity extends Activity {
             if (dockIdx >= dockRow.getChildCount()) return;
             View cell = dockRow.getChildAt(dockIdx);
             View tile = cell.findViewById(R.id.tile);
+            tileW = tile.getWidth();
+            tileH = tile.getHeight();
             l = dockRow.getLeft() + cell.getLeft() + tile.getLeft();
             t = dockRow.getTop() + cell.getTop() + tile.getTop();
         } else {
@@ -999,7 +1018,7 @@ public class HomeActivity extends Activity {
         showOrder();
     }
 
-    /** Down out of the dock drops into the grid; Up from the first grid row joins the dock (max 4). */
+    /** Down out of the dock drops into the grid; Up from the first grid row joins the dock (max 5). */
     private void moveVertically(int d) {
         if (zone == DOCK && d > 0) {
             AppInfo app = dockApps.remove(dockIdx);
@@ -1011,7 +1030,7 @@ public class HomeActivity extends Activity {
         } else if (zone == GRID && d < 0 && gridIdx < COLUMNS) {
             AppInfo app = gridApps.remove(gridIdx);
             int to = Math.min(gridIdx % COLUMNS, dockApps.size());
-            if (dockApps.size() >= 4) gridApps.add(gridIdx, dockApps.remove(to)); // full dock: swap places
+            if (dockApps.size() >= 5) gridApps.add(gridIdx, dockApps.remove(to)); // full dock: swap places
             dockApps.add(to, app);
             dockIdx = to;
             zone = DOCK;
