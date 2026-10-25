@@ -137,6 +137,11 @@ final class AppLoader {
         return new AppInfo(FIRE_HOME, "Fire TV Home", null, icon, sampleColor(icon), new Intent());
     }
 
+    private static AppInfo hiddenAppsTile(Context context) {
+        Drawable icon = context.getDrawable(R.drawable.icon_hidden_apps);
+        return new AppInfo(HIDDEN_APPS, "Applications masquées", null, icon, sampleColor(icon), new Intent());
+    }
+
     private static AppInfo koiPondTile(Context context) {
         Drawable icon = context.getDrawable(R.drawable.icon_koi_pond);
         Intent pond = new Intent(context, ScreensaverActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
