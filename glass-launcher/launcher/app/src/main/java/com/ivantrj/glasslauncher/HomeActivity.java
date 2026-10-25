@@ -167,8 +167,8 @@ public class HomeActivity extends Activity {
         connectivity = getSystemService(ConnectivityManager.class);
 
         root = findViewById(R.id.root);
-        root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> applyDisplayScale());
         page = findViewById(R.id.page);
+        page.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> applyDisplayScale());
         band = findViewById(R.id.band);
         glow = findViewById(R.id.glow);
         highlight = findViewById(R.id.highlight);
@@ -345,12 +345,20 @@ public class HomeActivity extends Activity {
         LayoutInflater inflater = LayoutInflater.from(this);
         if (dockApps.isEmpty()) return;
 
-        // Keep the dock on one line: five evenly sized cells across the existing 816dp row.
-        int rowWidth = dockRow.getLayoutParams().width > 0
-                ? dockRow.getLayoutParams().width : Math.round(dp(816));
-        int sizingColumns = Math.max(4, dockApps.size());
-        int cellWidth = rowWidth / sizingColumns;
-        int tileWidth = Math.min(Math.round(dp(180)), cellWidth - Math.round(dp(20)));
+        // Fit the dock to its actual tile count. Three tiles keep the comfortable 180dp size;
+        // five tiles share the full row and shrink evenly instead of overflowing the screen.
+        int count = dockApps.size();
+        int rowWidth = Math.min(Math.round(dp(816)), Math.max(Math.round(dp(204)), count * Math.round(dp(204))));
+        LinearLayout.LayoutParams rowParams = (LinearLayout.LayoutParams) dockRow.getLayoutParams();
+        rowParams.width = rowWidth;
+        dockRow.setLayoutParams(rowParams);
+        FrameLayout.LayoutParams bandParams = (FrameLayout.LayoutParams) band.getLayoutParams();
+        bandParams.width = rowWidth + Math.round(dp(24));
+        band.setLayoutParams(bandParams);
+
+        int cellWidth = rowWidth / count;
+        int tileWidth = Math.min(Math.round(dp(180)), cellWidth - Math.round(dp(24)));
+        tileWidth = Math.max(Math.round(dp(100)), tileWidth);
         int tileHeight = Math.round(tileWidth * 9f / 16f);
         dockRow.setGravity(Gravity.CENTER_HORIZONTAL);
         for (AppInfo app : dockApps) {
@@ -590,14 +598,19 @@ public class HomeActivity extends Activity {
         notice("✓  Échelle d’affichage : " + scale + " %");
     }
 
-    /** Scales the complete launcher as one centered surface; navigation logic is unchanged. */
+    /**
+     * Scale the designed page, not the root container. Scaling the root also transforms its
+     * clipping bounds and overlays, which can leave the UI cut off or visually off-centre.
+     * Keep the page horizontally centred and anchor its top edge so the dock/grid move upward
+     * proportionally on smaller scale settings.
+     */
     private void applyDisplayScale() {
-        if (root == null || root.getWidth() == 0 || root.getHeight() == 0) return;
+        if (page == null || page.getWidth() == 0 || page.getHeight() == 0) return;
         float scale = Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f;
-        root.setPivotX(root.getWidth() / 2f);
-        root.setPivotY(root.getHeight() / 2f);
-        root.setScaleX(scale);
-        root.setScaleY(scale);
+        page.setPivotX(page.getWidth() / 2f);
+        page.setPivotY(0f);
+        page.setScaleX(scale);
+        page.setScaleY(scale);
     }
 
     private static final int[] SCREENSAVER_MINUTES = {0, 2, 5, 10, 15, 30};
