@@ -56,6 +56,11 @@ public class HomeButtonService extends AccessibilityService {
         }
     }
 
+    /** Called when Glass is brought back to the foreground after visiting Fire TV Home. */
+    static void returnedToGlass() {
+        visitingFireHome = false;
+    }
+
     /** Idle minutes before the koi screensaver starts; 0 = off. Set in Glass's Settings menu. */
     static int screensaverMinutes(Context context) {
         return context.getSharedPreferences("home", MODE_PRIVATE).getInt("screensaverMinutes", 10);
