@@ -54,6 +54,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -679,6 +680,7 @@ public class HomeActivity extends Activity {
         if (!AppLoader.isShortcut(app.packageName)) {
             items.add(new MenuItem("Infos de l'application", this::openAppInfo));
             items.add(new MenuItem("Forcer l'arrêt", this::openAppInfo));
+            items.add(new MenuItem("Masquer l’application", this::hideApp));
             items.add(new MenuItem("Désinstaller", this::uninstallApp));
         }
         openMenu(focusedTileView(), items);
@@ -692,6 +694,22 @@ public class HomeActivity extends Activity {
                 Uri.fromParts("package", app.packageName, null)));
     }
 
+    /** Hides the selected app from the launcher without uninstalling it. */
+    private void hideApp() {
+        AppInfo app = focusedApp();
+        if (app == null || AppLoader.isShortcut(app.packageName)) return;
+        List<String> hidden = AppLoader.readList(this, "hidden.txt");
+        if (!hidden.contains(app.packageName)) hidden.add(app.packageName);
+        try (FileWriter writer = new FileWriter(new File(getFilesDir(), "hidden.txt"))) {
+            for (String pkg : hidden) writer.write(pkg + "\n");
+        } catch (Exception e) {
+            notice("Impossible de masquer cette application");
+            return;
+        }
+        restoreGridPkg = null;
+        loadApps();
+        notice("✓  " + app.label + " masquée");
+    }
     /** Requests the system package installer to uninstall the selected application. */
     private void uninstallApp() {
         AppInfo app = focusedApp();
