@@ -1108,7 +1108,7 @@ public class HomeActivity extends Activity {
         } else if (zone == GRID && d < 0 && gridIdx < COLUMNS) {
             AppInfo app = gridApps.remove(gridIdx);
             int to = Math.min(gridIdx % COLUMNS, dockApps.size());
-            if (dockApps.size() >= 5) gridApps.add(gridIdx, dockApps.remove(to)); // full dock: swap places
+            if (dockApps.size() >= prefs.getInt("dockTileLimit", 5)) gridApps.add(gridIdx, dockApps.remove(to)); // full dock: swap places
             dockApps.add(to, app);
             dockIdx = to;
             zone = DOCK;
