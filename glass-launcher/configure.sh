@@ -1,6 +1,6 @@
 #!/bin/sh
 # Change Glass without rebuilding. Glass reloads immediately.
-#   ./configure.sh dock com.stremio.one org.smarttube.beta com.spotify.tv.android com.netflix.ninja
+#   ./configure.sh dock com.stremio.one org.smarttube.beta com.spotify.tv.android com.netflix.ninja com.amazon.amazonvideo.livingroom
 #   ./configure.sh dock reset                 back to the order in res/values/config.xml
 #   ./configure.sh hide org.videolan.vlc ...  hide apps from the grid (adds to the built-in list)
 #   ./configure.sh hide reset                 show them again
