@@ -27,7 +27,7 @@ final class AppLoader {
 
     /** Pseudo package of the "Fire TV Home" tile, which opens Amazon's home screen (see HomeButtonService). */
     static final String FIRE_HOME = "glass.firetv-home";
-    /** Pseudo package of the "Koi Pond" tile, which starts the screensaver on demand. */
+    /** Pseudo package for the clock screensaver tile. */
     static final String KOI_POND = "glass.koi-pond";
 
     /** Tiles that are Glass's own shortcuts rather than installed apps (no App info page). */
@@ -136,7 +136,7 @@ final class AppLoader {
     private static AppInfo koiPondTile(Context context) {
         Drawable icon = context.getDrawable(R.drawable.icon_koi_pond);
         Intent pond = new Intent(context, ScreensaverActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return new AppInfo(KOI_POND, "Koi Pond", null, icon, sampleColor(icon), pond);
+        return new AppInfo(KOI_POND, "Horloge", null, icon, sampleColor(icon), pond);
     }
 
     private static AppInfo toApp(PackageManager pm, ActivityInfo ai) {
