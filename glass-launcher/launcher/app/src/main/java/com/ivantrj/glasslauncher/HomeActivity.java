@@ -746,7 +746,7 @@ public class HomeActivity extends Activity {
         List<String> hidden = AppLoader.readList(this, "hidden.txt");
         hidden.removeIf(pkg::equals);
         try (FileWriter writer = new FileWriter(new File(getFilesDir(), "hidden.txt"))) {
-            for (String item : hidden) writer.write(item + "\\n");
+            for (String item : hidden) writer.write(item + "\n");
         } catch (Exception e) {
             notice("Impossible de réafficher cette application");
             return;
