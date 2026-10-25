@@ -29,10 +29,12 @@ final class AppLoader {
     static final String FIRE_HOME = "glass.firetv-home";
     /** Pseudo package for the clock screensaver tile. */
     static final String KOI_POND = "glass.koi-pond";
+    /** Recovery tile for apps hidden from the launcher. */
+    static final String HIDDEN_APPS = "glass.hidden-apps";
 
     /** Tiles that are Glass's own shortcuts rather than installed apps (no App info page). */
     static boolean isShortcut(String pkg) {
-        return FIRE_HOME.equals(pkg) || KOI_POND.equals(pkg);
+        return FIRE_HOME.equals(pkg) || KOI_POND.equals(pkg) || HIDDEN_APPS.equals(pkg);
     }
 
     static final class Result {
@@ -82,6 +84,8 @@ final class AppLoader {
         if (!order.isEmpty()) {
             result.grid.sort((a, b) -> Integer.compare(rank(order, a), rank(order, b)));
         }
+        // Always keep the recovery tile at the end of the grid, regardless of alphabetical order.
+        result.grid.add(hiddenAppsTile(context));
         return result;
     }
 
