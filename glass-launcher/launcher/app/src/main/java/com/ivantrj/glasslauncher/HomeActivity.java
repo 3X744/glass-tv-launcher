@@ -527,33 +527,20 @@ public class HomeActivity extends Activity {
         }
     }
 
-    /** Open Fire TV's equipment-control settings (TV input control depends on TV/CEC support). */
-    private void openHdmiSettings() {
-        Intent equipment = new Intent().setClassName(
-                "com.amazon.tv.devicecontrolsettings",
-                "com.amazon.tv.devicecontrolsettings.screens.main_menu.OzOobeSettingsActivity");
-        try {
-            startActivity(equipment.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        } catch (ActivityNotFoundException | SecurityException e) {
-            notice("Contrôle TV/HDMI indisponible sur ce Fire TV");
-        }
-    }
-
-    /** Settings pill: Fire TV settings, equipment control and the screensaver. */
+    /** Settings pill: Fire TV settings and the screensaver. */
     private void openSettingsMenu() {
         openSettingsMenu(false);
     }
 
     /** onScreensaver: come back from the Screensaver submenu with its row selected. */
     private void openSettingsMenu(boolean onScreensaver) {
-        openSettingsMenuAt(onScreensaver ? 4 : -1);
+        openSettingsMenuAt(onScreensaver ? 3 : -1);
     }
 
     private void openSettingsMenuAt(int selectedIndex) {
         int minutes = HomeButtonService.screensaverMinutes(this);
         List<MenuItem> items = new ArrayList<>();
         items.add(new MenuItem("Paramètres Fire TV", this::openSettings));
-        items.add(new MenuItem("Sources HDMI / contrôle TV", this::openHdmiSettings));
         items.add(MenuItem.divider());
         items.add(new MenuItem("Affichage et tuiles  ›", this::openDisplayMenu));
         items.add(new MenuItem("Économiseur d’écran  ›", minutes == 0 ? "Désactivé" : "Après " + minutes + " min",
@@ -574,7 +561,7 @@ public class HomeActivity extends Activity {
         items.add(new MenuItem("Nombre de tuiles  ›", tileLimit + " sur la ligne", this::openDockCountMenu));
         items.add(new MenuItem("Taille des infos en haut  ›", scale + " %", this::openDisplayScaleMenu));
         openMenu(pills[PILL_SETTINGS], items);
-        menuBack = () -> openSettingsMenuAt(3);
+        menuBack = () -> openSettingsMenuAt(2);
     }
 
     private void openDockCountMenu() {
