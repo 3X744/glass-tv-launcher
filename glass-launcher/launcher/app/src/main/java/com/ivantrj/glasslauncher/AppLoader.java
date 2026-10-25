@@ -64,9 +64,14 @@ final class AppLoader {
         if (dock.isEmpty() && !new File(context.getFilesDir(), "dock.txt").isFile()) {
             dock = Arrays.asList(context.getResources().getStringArray(R.array.dock_packages));
         }
+        int dockLimit = context.getSharedPreferences("focus", Context.MODE_PRIVATE)
+                .getInt("dockTileLimit", 5);
+        dockLimit = Math.max(1, Math.min(5, dockLimit));
         for (String pkg : dock) {
+            // Apps beyond the selected dock limit stay available in the grid.
+            if (result.dock.size() >= dockLimit) continue;
             AppInfo app = apps.remove(pkg);
-            if (app != null && result.dock.size() < 5) result.dock.add(app);
+            if (app != null) result.dock.add(app);
         }
         result.grid.addAll(apps.values());
         Collator collator = Collator.getInstance();
