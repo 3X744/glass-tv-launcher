@@ -167,7 +167,7 @@ public class HomeActivity extends Activity {
         connectivity = getSystemService(ConnectivityManager.class);
 
         root = findViewById(R.id.root);
-        root.post(this::applyDisplayScale);
+        root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> applyDisplayScale());
         page = findViewById(R.id.page);
         band = findViewById(R.id.band);
         glow = findViewById(R.id.glow);
@@ -592,10 +592,7 @@ public class HomeActivity extends Activity {
 
     /** Scales the complete launcher as one centered surface; navigation logic is unchanged. */
     private void applyDisplayScale() {
-        if (root == null || root.getWidth() == 0 || root.getHeight() == 0) {
-            if (root != null) root.post(this::applyDisplayScale);
-            return;
-        }
+        if (root == null || root.getWidth() == 0 || root.getHeight() == 0) return;
         float scale = Math.max(70, Math.min(100, prefs.getInt("displayScale", 100))) / 100f;
         root.setPivotX(root.getWidth() / 2f);
         root.setPivotY(root.getHeight() / 2f);
