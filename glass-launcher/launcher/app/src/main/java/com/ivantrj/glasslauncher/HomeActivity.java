@@ -631,16 +631,16 @@ public class HomeActivity extends Activity {
     private void openScreensaverMenu() {
         int current = HomeButtonService.screensaverMinutes(this);
         List<MenuItem> items = new ArrayList<>();
-        items.add(MenuItem.caption("Screensaver"));
+        items.add(MenuItem.caption("Écran de veille"));
         items.add(MenuItem.divider());
         int selected = -1;
         for (int minutes : SCREENSAVER_MINUTES) {
-            String label = minutes == 0 ? "Off" : "After " + minutes + " min";
+            String label = minutes == 0 ? "Désactivé" : "Après " + minutes + " min";
             if (minutes == current) selected = items.size();
             items.add(MenuItem.option(label, minutes == current, () -> setScreensaver(minutes)));
         }
         items.add(MenuItem.divider());
-        items.add(new MenuItem("▶  Preview now", () -> ScreensaverActivity.start(this)));
+        items.add(new MenuItem("▶  Aperçu maintenant", () -> ScreensaverActivity.start(this)));
         openMenu(pills[PILL_SETTINGS], items);
         menuBack = () -> openSettingsMenu(true); // Back / Left step up to the Settings menu
         if (selected >= 0) { // start on the current choice
@@ -651,7 +651,7 @@ public class HomeActivity extends Activity {
 
     private void setScreensaver(int minutes) {
         HomeButtonService.setScreensaverMinutes(this, minutes);
-        notice(minutes == 0 ? "✓  Screensaver off" : "✓  Koi pond after " + minutes + " min idle");
+        notice(minutes == 0 ? "✓  Écran de veille désactivé" : "✓  Écran de veille après " + minutes + " min");
     }
 
     /** The "Fire TV Home" tile: Amazon's home until the next Home press. */
