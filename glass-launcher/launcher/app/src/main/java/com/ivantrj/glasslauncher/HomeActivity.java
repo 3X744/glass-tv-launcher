@@ -349,7 +349,7 @@ public class HomeActivity extends Activity {
         // five tiles share the full row and shrink evenly instead of overflowing the screen.
         int count = dockApps.size();
         int rowWidth = Math.min(Math.round(dp(816)), Math.max(Math.round(dp(204)), count * Math.round(dp(204))));
-        LinearLayout.LayoutParams rowParams = (LinearLayout.LayoutParams) dockRow.getLayoutParams();
+        FrameLayout.LayoutParams rowParams = (FrameLayout.LayoutParams) dockRow.getLayoutParams();
         rowParams.width = rowWidth;
         dockRow.setLayoutParams(rowParams);
         FrameLayout.LayoutParams bandParams = (FrameLayout.LayoutParams) band.getLayoutParams();
