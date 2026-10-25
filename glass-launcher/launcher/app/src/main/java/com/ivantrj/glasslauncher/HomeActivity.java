@@ -249,6 +249,7 @@ public class HomeActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+        HomeButtonService.returnedToGlass();
         stopped = false;
         IntentFilter timeFilter = new IntentFilter(Intent.ACTION_TIME_TICK);
         timeFilter.addAction(Intent.ACTION_TIME_CHANGED);
