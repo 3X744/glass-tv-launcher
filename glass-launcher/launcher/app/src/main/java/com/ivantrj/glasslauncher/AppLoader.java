@@ -66,7 +66,7 @@ final class AppLoader {
         }
         for (String pkg : dock) {
             AppInfo app = apps.remove(pkg);
-            if (app != null && result.dock.size() < 4) result.dock.add(app);
+            if (app != null && result.dock.size() < 5) result.dock.add(app);
         }
         result.grid.addAll(apps.values());
         Collator collator = Collator.getInstance();
